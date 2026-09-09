@@ -1,6 +1,6 @@
 package riscv_ref;
 
-    // opcodes: always instr[6:0]
+    // opcodes: always instruction[6:0]
 
     typedef enum logic[6:0] {
         OP_R_TYPE = 7'b0110011; // R-Type instructions: add, sub, or, and, etc..
@@ -14,7 +14,7 @@ package riscv_ref;
         OP_LUI = 7'b0110111; // Load Upper Immediate
     } opcodes;
 
-    // funct3: instr[14:12] for R, I, S, B type instructions
+    // funct3: instruction[14:12] for R, I, S, B type instructions
 
     // for my enums, it increments by 1 for each parameter but I still defined all of them for completeness and clarity
 
@@ -60,7 +60,8 @@ package riscv_ref;
         F3_SW = 3'b010
     } funct3_S;
 
-    // funct7: instr[31:25], chooses ADD/SRL or SUB/SRA
+    // funct7: instruction[31:25], chooses ADD/SRL or SUB/SRA
+    // the differentiator is really only instruction[30]
 
     localparam logic[31:25] F7_ADD_SRL = 7'b0000000;
     localparam logic[31:25] F7_SUB_SRA = 7'b0100000;

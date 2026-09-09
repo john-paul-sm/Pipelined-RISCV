@@ -1,11 +1,7 @@
-import riscv_ref::*;
-
-module immediate_generator (
+module immediate_generator import riscv_ref::*; (
     input logic[31:0] instruction,
     output logic[31:0] immediate
 );
-
-// The opcode which is determined in instruction[6:0] will 
 
 logic[6:0] opcode;
 assign opcode = instruction[6:0];
@@ -22,3 +18,14 @@ always_comb begin : imm_gen
 end
 
 endmodule
+
+/* 
+The opcode which is determined in instruction[6:0] will be used as the select to choose the right formatting for the immediates.
+R-Type instructions (add, sub, slr, and, etc.) do not utilize immediates in their bit encoding so it will go to the default case.
+I-Type instructions, including load and jump and link register (jalr) follow the same format for their storing their 12 immediate bits.
+S-Type instructions (sw, sh, sb) also have 12 immediate bits, but they are disjointed.
+B-Type instructions (beq, bne, blt, bge, etc.)
+
+
+
+*/
