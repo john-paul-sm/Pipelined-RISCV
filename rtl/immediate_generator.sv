@@ -15,7 +15,7 @@ always_comb begin : imm_gen
         OP_I_TYPE, OP_LOAD, OP_JALR: immediate = {{20{instruction[31]}}, instruction[31:20]};
         OP_STORE: immediate = {{20{instruction[31]}}, instruction[31:25], instruction[11:7]};
         OP_BRANCH: immediate = {{20{instruction[31]}}, instruction[7], instruction[30:25], instruction[11:8], 1'b0};
-        OP_AUIPC, OP_LUI: immediate = {{12{instruction[31]}},instruction[31:12]};
+        OP_AUIPC, OP_LUI: immediate = {instruction[31:12], 12'b0};
         OP_JAL: immediate = {{12{instruction[31]}}, instruction[19:12], instruction[20], instruction[30:21], 1'b0};
         default: immediate = '0;
     endcase
