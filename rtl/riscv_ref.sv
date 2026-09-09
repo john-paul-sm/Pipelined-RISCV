@@ -3,15 +3,15 @@ package riscv_ref;
     // opcodes: always instruction[6:0]
 
     typedef enum logic[6:0] {
-        OP_R_TYPE = 7'b0110011; // R-Type instructions: add, sub, or, and, etc..
-        OP_I_TYPE = 7'b0010011; // I-Type instructions: addi, subi, andi, ori, etc..
-        OP_LOAD = 7'b0000011; // Load instructions: lw, lh, lb, lhu, lbu
-        OP_STORE = 7'b0100011; // S-Type instructions: sw, sh, sb
-        OP_BRANCH = 7'b1100011; // B-Type instructions: beq, bne, blt, bge, etc..
-        OP_JAL = 7'b1101111; // Jump and Link
-        OP_JALR = 7'b1100111; // Jump and Link Register
-        OP_AUIPC = 7'b0010111; // Add Upper Immediate Program Counter
-        OP_LUI = 7'b0110111; // Load Upper Immediate
+        OP_R_TYPE = 7'b0110011, // R-Type instructions: add, sub, or, and, etc..
+        OP_I_TYPE = 7'b0010011, // I-Type instructions: addi, subi, andi, ori, etc..
+        OP_LOAD = 7'b0000011, // Load instructions: lw, lh, lb, lhu, lbu
+        OP_STORE = 7'b0100011, // S-Type instructions: sw, sh, sb
+        OP_BRANCH = 7'b1100011, // B-Type instructions: beq, bne, blt, bge, etc..
+        OP_JAL = 7'b1101111, // Jump and Link
+        OP_JALR = 7'b1100111, // Jump and Link Register
+        OP_AUIPC = 7'b0010111, // Add Upper Immediate Program Counter
+        OP_LUI = 7'b0110111 // Load Upper Immediate
     } opcodes;
 
     // funct3: instruction[14:12] for R, I, S, B type instructions
