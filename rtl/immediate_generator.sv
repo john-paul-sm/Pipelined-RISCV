@@ -6,7 +6,7 @@ module immediate_generator import riscv_ref::*; (
 logic[6:0] opcode;
 assign opcode = instruction[6:0];
 
-always_comb begin : imm_gen
+always_comb begin
     case (opcode) 
         OP_I_TYPE, OP_LOAD, OP_JALR: immediate = {{20{instruction[31]}}, instruction[31:20]};
         OP_STORE: immediate = {{20{instruction[31]}}, instruction[31:25], instruction[11:7]};
@@ -25,7 +25,4 @@ R-Type instructions (add, sub, slr, and, etc.) do not utilize immediates in thei
 I-Type instructions, including load and jump and link register (jalr) follow the same format for their storing their 12 immediate bits.
 S-Type instructions (sw, sh, sb) also have 12 immediate bits, but they are disjointed.
 B-Type instructions (beq, bne, blt, bge, etc.)
-
-
-
 */

@@ -17,7 +17,7 @@ always_comb begin : alu
         ALU_SRA: result = $signed(a) >>> b[4:0];
         ALU_OR: result = a | b;
         ALU_AND: result = a & b;
-        default: result = 'x;
+        default: result = 32'b0;
     endcase
 end
 

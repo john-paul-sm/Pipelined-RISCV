@@ -1,16 +1,20 @@
 module program_counter (
     input logic clk,
     input logic reset,
-    input logic[31:0] pc,
-    output logic[31:0] next_pc
+    input logic stall,
+    input logic [31:0] pc_in,
+    output logic [31:0] pc_out
 );
 
-always_ff @(posedge clk or posedge reset) begin
+always_ff @(posedge clk) begin
     if (reset) begin
-        next_pc <= 32'b0;
+        pc_out <= 32'h0000_0000;
+    end
+    else if (stall) begin
+        pc_out <= pc_out;
     end
     else begin
-        next_pc <= pc;
+        pc_out <= pc_in;
     end
 end
 

@@ -1,0 +1,357 @@
+// 5-stage in-order RV32I pipeline: IF -> ID -> EX -> MEM -> WB.
+// Synthesis boundary: contains every pipeline module and all glue logic, but not the
+// two memories. The memories sit in riscv_top and connect through the memory ports.
+//
+// Wire prefix = the stage that holds the instruction the value belongs to.
+// Forwarding wires keep their own prefix (mem_fwd_value, wb_data) although EX reads them.
+//
+// Mux labels:
+//   FA / FB : forwarding muxes for ALU operand a / b (select forward_a / forward_b)
+//   SA / SB : ALU source muxes for ALU input a / b   (select ALUSrcA / ALUSrcB)
+//   T       : target mux                             (select Jalr)
+//   M       : forwarded value from the instruction in MEM (mem_fwd_value)
+//   W       : forwarded value from the instruction in WB  (wb_data)
+
+module riscv_core (
+    input logic clk,
+    input logic reset,
+
+    output logic [31:0] imem_addr, // instruction_memory.address_in
+    input logic [31:0] imem_rdata, // instruction_memory.instruction
+
+    output logic [31:0] dmem_addr, // data_memory.address
+    output logic [31:0] dmem_wdata, // data_memory.wr_data
+    output logic dmem_MemWrite, // data_memory.MemWrite
+    output logic [2:0] dmem_funct3, // data_memory.funct3
+    input logic [31:0] dmem_rdata // data_memory.rd_data
+);
+
+// Hazard / redirect control
+logic hz_stall; // hazard_detection_unit.stall (load-use)
+logic ex_redirect; // branch_flush_unit.redirect (taken branch / jump)
+
+// IF
+logic [31:0] if_pc;
+logic [31:0] if_pc_plus4;
+logic [31:0] if_next_pc;
+logic [31:0] if_instr;
+
+// ID
+logic [31:0] id_pc;
+logic [31:0] id_instr;
+logic [4:0] id_rs1_addr;
+logic [4:0] id_rs2_addr;
+logic [4:0] id_rd_addr;
+logic [2:0] id_funct3;
+logic [31:0] id_rs1_data;
+logic [31:0] id_rs2_data;
+logic [31:0] id_imm;
+logic id_RegWrite;
+logic id_MemRead;
+logic id_MemWrite;
+logic [1:0] id_MemToReg;
+logic [1:0] id_ALUSrcA;
+logic id_ALUSrcB;
+logic id_Branch;
+logic id_Jump;
+logic id_Jalr;
+logic [3:0] id_alu_op;
+
+// EX (id_ex_register outputs, then values made in EX)
+logic [31:0] ex_pc;
+logic [31:0] ex_rs1_data;
+logic [31:0] ex_rs2_data;
+logic [31:0] ex_imm;
+logic [4:0] ex_rs1_addr;
+logic [4:0] ex_rs2_addr;
+logic [4:0] ex_rd_addr;
+logic [2:0] ex_funct3;
+logic [3:0] ex_alu_op;
+logic [1:0] ex_ALUSrcA;
+logic ex_ALUSrcB;
+logic ex_Branch;
+logic ex_Jump;
+logic ex_Jalr;
+logic ex_MemRead;
+logic ex_MemWrite;
+logic ex_RegWrite;
+logic [1:0] ex_MemToReg;
+
+logic [1:0] ex_forward_a; // FA select
+logic [1:0] ex_forward_b; // FB select
+logic [31:0] ex_fwd_a; // FA output: current rs1 value
+logic [31:0] ex_fwd_b; // FB output: current rs2 value
+logic [31:0] ex_alu_a; // SA output
+logic [31:0] ex_alu_b; // SB output
+logic [31:0] ex_alu_result;
+logic [31:0] ex_pc_target; // B-type / JAL target
+logic [31:0] ex_target; // T output: redirect address
+logic [31:0] ex_pc_plus4; // JAL / JALR link value
+
+// MEM (ex_mem_register outputs, then values made in MEM)
+logic [31:0] mem_alu_result;
+logic [31:0] mem_rs2_data;
+logic [31:0] mem_pc_plus4;
+logic [4:0] mem_rd_addr;
+logic [2:0] mem_funct3;
+logic mem_MemWrite;
+logic mem_RegWrite;
+logic [1:0] mem_MemToReg;
+logic [31:0] mem_load_data;
+logic [31:0] mem_fwd_value; // M
+
+// WB (mem_wb_register outputs, then the WB mux)
+logic [31:0] wb_load_data;
+logic [31:0] wb_alu_result;
+logic [31:0] wb_pc_plus4;
+logic [4:0] wb_rd_addr;
+logic wb_RegWrite;
+logic [1:0] wb_MemToReg;
+logic [31:0] wb_data; // W
+
+assign if_pc_plus4 = if_pc + 32'd4;
+
+
+assign if_next_pc = ex_redirect ? ex_target : if_pc_plus4;
+
+program_counter u_pc (
+    .clk(clk),
+    .reset(reset),
+    .stall(hz_stall), 
+    .pc_in(if_next_pc),
+    .pc_out(if_pc)
+);
+
+assign imem_addr = if_pc;
+assign if_instr = imem_rdata;
+
+if_id_register u_if_id (
+    .clk(clk),
+    .reset(reset),
+    .stall(hz_stall), // load-use: keep the dependent instruction in ID
+    .flush(ex_redirect), // taken branch / jump: the instruction in IF is wrong-path
+    .pc_in(if_pc),
+    .instr_in(if_instr),
+    .pc_out(id_pc),
+    .instr_out(id_instr)
+);
+
+assign id_rs1_addr = id_instr[19:15];
+assign id_rs2_addr = id_instr[24:20];
+assign id_rd_addr = id_instr[11:7];
+assign id_funct3 = id_instr[14:12];
+
+control_unit u_control (
+    .instruction(id_instr),
+    .RegWrite(id_RegWrite),
+    .MemRead(id_MemRead),
+    .MemWrite(id_MemWrite),
+    .MemToReg(id_MemToReg),
+    .ALUSrcA(id_ALUSrcA),
+    .ALUSrcB(id_ALUSrcB),
+    .Branch(id_Branch),
+    .Jump(id_Jump),
+    .Jalr(id_Jalr),
+    .alu_op(id_alu_op)
+);
+
+immediate_generator u_imm_gen (
+    .instruction(id_instr),
+    .immediate(id_imm)
+);
+
+// Read ports use ID wires, the write port uses WB wires (write-first).
+register_file u_rf (
+    .clk(clk),
+    .reset(reset),
+    .RegWrite(wb_RegWrite),
+    .wr_addr(wb_rd_addr),
+    .wr_data(wb_data),
+    .rs1_addr(id_rs1_addr),
+    .rs2_addr(id_rs2_addr),
+    .rd_data1(id_rs1_data),
+    .rd_data2(id_rs2_data)
+);
+
+hazard_detection_unit u_hazard (
+    .id_ex_MemRead(ex_MemRead),
+    .id_ex_rd_addr(ex_rd_addr),
+    .if_id_rs1_addr(id_rs1_addr),
+    .if_id_rs2_addr(id_rs2_addr),
+    .stall(hz_stall)
+);
+
+id_ex_register u_id_ex (
+    .clk(clk),
+    .reset(reset),
+    .stall(1'b0), // never holds: in a load-use stall the load must leave EX
+    .flush(hz_stall || ex_redirect), // load-use bubble, or kill a wrong-path instruction
+
+    .pc_in(id_pc),
+    .rs1_data_in(id_rs1_data),
+    .rs2_data_in(id_rs2_data),
+    .imm_in(id_imm),
+    .rs1_addr_in(id_rs1_addr),
+    .rs2_addr_in(id_rs2_addr),
+    .rd_addr_in(id_rd_addr),
+    .funct3_in(id_funct3),
+
+    .alu_op_in(id_alu_op),
+    .ALUSrcA_in(id_ALUSrcA),
+    .ALUSrcB_in(id_ALUSrcB),
+    .Branch_in(id_Branch),
+    .Jump_in(id_Jump),
+    .Jalr_in(id_Jalr),
+    .MemRead_in(id_MemRead),
+    .MemWrite_in(id_MemWrite),
+    .RegWrite_in(id_RegWrite),
+    .MemToReg_in(id_MemToReg),
+
+    .pc_out(ex_pc),
+    .rs1_data_out(ex_rs1_data),
+    .rs2_data_out(ex_rs2_data),
+    .imm_out(ex_imm),
+    .rs1_addr_out(ex_rs1_addr),
+    .rs2_addr_out(ex_rs2_addr),
+    .rd_addr_out(ex_rd_addr),
+    .funct3_out(ex_funct3),
+
+    .alu_op_out(ex_alu_op),
+    .ALUSrcA_out(ex_ALUSrcA),
+    .ALUSrcB_out(ex_ALUSrcB),
+    .Branch_out(ex_Branch),
+    .Jump_out(ex_Jump),
+    .Jalr_out(ex_Jalr),
+    .MemRead_out(ex_MemRead),
+    .MemWrite_out(ex_MemWrite),
+    .RegWrite_out(ex_RegWrite),
+    .MemToReg_out(ex_MemToReg)
+);
+
+
+forwarding_unit u_fwd (
+    .id_ex_rs1_addr(ex_rs1_addr),
+    .id_ex_rs2_addr(ex_rs2_addr),
+    .ex_mem_rd_addr(mem_rd_addr),
+    .ex_mem_RegWrite(mem_RegWrite),
+    .mem_wb_rd_addr(wb_rd_addr),
+    .mem_wb_RegWrite(wb_RegWrite),
+    .forward_a(ex_forward_a),
+    .forward_b(ex_forward_b)
+);
+
+// FA / FB: 00 = register file, 10 = M, 01 = W. 11 is never generated.
+always_comb begin
+    case (ex_forward_a)
+        2'b10: ex_fwd_a = mem_fwd_value;
+        2'b01: ex_fwd_a = wb_data;
+        default: ex_fwd_a = ex_rs1_data;
+    endcase
+end
+
+always_comb begin
+    case (ex_forward_b)
+        2'b10: ex_fwd_b = mem_fwd_value;
+        2'b01: ex_fwd_b = wb_data;
+        default: ex_fwd_b = ex_rs2_data;
+    endcase
+end
+
+
+always_comb begin
+    case (ex_ALUSrcA)
+        2'b01: ex_alu_a = ex_pc;
+        2'b10: ex_alu_a = 32'd0;
+        default: ex_alu_a = ex_fwd_a;
+    endcase
+end
+
+
+assign ex_alu_b = ex_ALUSrcB ? ex_imm : ex_fwd_b;
+
+alu u_alu (
+    .a(ex_alu_a),
+    .b(ex_alu_b),
+    .op(ex_alu_op),
+    .result(ex_alu_result)
+);
+
+assign ex_pc_target = ex_pc + ex_imm;
+
+
+assign ex_target = ex_Jalr ? (ex_alu_result & ~32'd1) : ex_pc_target;
+
+assign ex_pc_plus4 = ex_pc + 32'd4;
+
+branch_flush_unit u_branch (
+    .Branch(ex_Branch),
+    .Jump(ex_Jump),
+    .funct3(ex_funct3),
+    .operand_a(ex_fwd_a),
+    .operand_b(ex_fwd_b),
+    .redirect(ex_redirect)
+);
+
+ex_mem_register u_ex_mem (
+    .clk(clk),
+    .reset(reset),
+    .stall(1'b0),
+    .flush(1'b0),
+
+    .alu_result_in(ex_alu_result),
+    .rs2_data_in(ex_fwd_b), // store data must be the forwarded rs2 value
+    .pc_plus4_in(ex_pc_plus4),
+    .rd_addr_in(ex_rd_addr),
+    .funct3_in(ex_funct3),
+    .MemWrite_in(ex_MemWrite),
+    .RegWrite_in(ex_RegWrite),
+    .MemToReg_in(ex_MemToReg),
+
+    .alu_result_out(mem_alu_result),
+    .rs2_data_out(mem_rs2_data),
+    .pc_plus4_out(mem_pc_plus4),
+    .rd_addr_out(mem_rd_addr),
+    .funct3_out(mem_funct3),
+    .MemWrite_out(mem_MemWrite),
+    .RegWrite_out(mem_RegWrite),
+    .MemToReg_out(mem_MemToReg)
+);
+
+assign dmem_addr = mem_alu_result;
+assign dmem_wdata = mem_rs2_data;
+assign dmem_MemWrite = mem_MemWrite;
+assign dmem_funct3 = mem_funct3;
+assign mem_load_data = dmem_rdata;
+
+assign mem_fwd_value = (mem_MemToReg == 2'b10) ? mem_pc_plus4 : mem_alu_result;
+
+mem_wb_register u_mem_wb (
+    .clk(clk),
+    .reset(reset),
+    .stall(1'b0),
+    .flush(1'b0),
+
+    .load_data_in(mem_load_data),
+    .alu_result_in(mem_alu_result),
+    .pc_plus4_in(mem_pc_plus4),
+    .rd_addr_in(mem_rd_addr),
+    .RegWrite_in(mem_RegWrite),
+    .MemToReg_in(mem_MemToReg),
+
+    .load_data_out(wb_load_data),
+    .alu_result_out(wb_alu_result),
+    .pc_plus4_out(wb_pc_plus4),
+    .rd_addr_out(wb_rd_addr),
+    .RegWrite_out(wb_RegWrite),
+    .MemToReg_out(wb_MemToReg)
+);
+
+always_comb begin
+    case (wb_MemToReg)
+        2'b01: wb_data = wb_load_data;
+        2'b10: wb_data = wb_pc_plus4;
+        default: wb_data = wb_alu_result;
+    endcase
+end
+
+endmodule

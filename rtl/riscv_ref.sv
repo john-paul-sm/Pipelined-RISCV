@@ -12,7 +12,7 @@ package riscv_ref;
         OP_JALR = 7'b1100111, // Jump and Link Register
         OP_AUIPC = 7'b0010111, // Add Upper Immediate Program Counter
         OP_LUI = 7'b0110111 // Load Upper Immediate
-    } opcodes;
+    } opcode_enum;
 
     // funct3: instruction[14:12] for R, I, S, B type instructions
 
@@ -20,8 +20,8 @@ package riscv_ref;
 
     // R-Type / I-Type
 
-    typedef enum logic[14:12] {
-        F3_ADD_OR_SUB = 3'b000,
+    typedef enum logic[2:0] {
+        F3_ADD_SUB = 3'b000,
         F3_SLL = 3'b001,
         F3_SLT = 3'b010,
         F3_SLTU = 3'b011,
@@ -33,7 +33,7 @@ package riscv_ref;
 
     // B-Type
 
-    typedef enum logic[14:12] {
+    typedef enum logic[2:0] {
         F3_BEQ = 3'b000,
         F3_BNE = 3'b001,
         F3_BLT = 3'b100,
@@ -44,7 +44,7 @@ package riscv_ref;
 
     // L-Type
 
-    typedef enum logic[14:12] {
+    typedef enum logic[2:0] {
         F3_LB = 3'b000,
         F3_LH = 3'b001,
         F3_LW = 3'b010,
@@ -54,7 +54,7 @@ package riscv_ref;
     
     // S-Type
 
-    typedef enum logic[14:12] {
+    typedef enum logic[2:0] {
         F3_SB = 3'b000,
         F3_SH = 3'b001,
         F3_SW = 3'b010
@@ -63,8 +63,8 @@ package riscv_ref;
     // funct7: instruction[31:25], chooses ADD/SRL or SUB/SRA
     // the differentiator is really only instruction[30]
 
-    localparam logic[31:25] F7_ADD_SRL = 7'b0000000;
-    localparam logic[31:25] F7_SUB_SRA = 7'b0100000;
+    localparam logic[6:0] F7_ADD_SRL = 7'b0000000;
+    localparam logic[6:0] F7_SUB_SRA = 7'b0100000;
 
     typedef enum logic[3:0] {
         ALU_ADD = 4'b0000,
@@ -77,6 +77,6 @@ package riscv_ref;
         ALU_SRA = 4'b0111,
         ALU_OR = 4'b1000,
         ALU_AND = 4'b1001
-    } alu_control;
+    } alu_op_enum;
 
 endpackage : riscv_ref
