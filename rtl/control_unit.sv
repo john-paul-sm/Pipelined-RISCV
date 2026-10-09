@@ -9,16 +9,19 @@ module control_unit import riscv_ref::*; (
     output logic Branch,     // 1 = conditional branch (B-type)
     output logic Jump,       // 1 = JAL or JALR (always taken)
     output logic Jalr,       // 1 = jump target is rs1+imm (from ALU), not PC+imm
+    output logic MulDiv,     // 1 = M extension instruction: mul_div_unit result, not ALU result
     output logic [3:0] alu_op
 );
 
 logic [6:0] opcode;
 logic [2:0] funct3;
 logic funct7_5; // bit 5 of funct7
+logic [6:0] funct7;
 
 assign opcode = instruction[6:0];
 assign funct3 = instruction[14:12];
 assign funct7_5 = instruction[30];
+assign funct7 = instruction[31:25];
 
 localparam logic [1:0] RES_ALU = 2'b00;
 localparam logic [1:0] RES_MEM = 2'b01;
@@ -38,11 +41,13 @@ always_comb begin
     Branch = 1'b0;
     Jump = 1'b0;
     Jalr = 1'b0;
+    MulDiv = 1'b0;
     alu_op = ALU_ADD;
  
     case (opcode)
         OP_R_TYPE: begin            // add, sub, sll, slt, ... : rd = rs1 op rs2
             RegWrite = 1'b1;
+            MulDiv = (funct7 == F7_MULDIV); // mul, div, rem, ... : alu_op below is unused
 
             case (funct3)
                 F3_ADD_SUB: alu_op = funct7_5 ? ALU_SUB : ALU_ADD;

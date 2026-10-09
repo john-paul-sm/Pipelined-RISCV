@@ -23,6 +23,7 @@ module id_ex_register (
     input logic Branch_in,
     input logic Jump_in,
     input logic Jalr_in,
+    input logic MulDiv_in,
     // MEM
     input logic MemRead_in,
     input logic MemWrite_in,
@@ -47,6 +48,7 @@ module id_ex_register (
     output logic Branch_out,
     output logic Jump_out,
     output logic Jalr_out,
+    output logic MulDiv_out,
     output logic MemRead_out,
     output logic MemWrite_out,
     output logic RegWrite_out,
@@ -73,6 +75,7 @@ always_ff @(posedge clk) begin
         Branch_out <= 1'b0;
         Jump_out <= 1'b0;
         Jalr_out <= 1'b0;
+        MulDiv_out <= 1'b0;
         MemRead_out  <= 1'b0;
         MemWrite_out <= 1'b0;
         RegWrite_out <= 1'b0;
@@ -95,6 +98,7 @@ always_ff @(posedge clk) begin
         Branch_out <= Branch_out;
         Jump_out <= Jump_out;
         Jalr_out <= Jalr_out;
+        MulDiv_out <= MulDiv_out;
         MemRead_out  <= MemRead_out;
         MemWrite_out <= MemWrite_out;
         RegWrite_out <= RegWrite_out;
@@ -116,6 +120,7 @@ always_ff @(posedge clk) begin
         Branch_out <= Branch_in;
         Jump_out <= Jump_in;
         Jalr_out <= Jalr_in;
+        MulDiv_out <= MulDiv_in;
         MemRead_out  <= MemRead_in;
         MemWrite_out <= MemWrite_in;
         RegWrite_out <= RegWrite_in;

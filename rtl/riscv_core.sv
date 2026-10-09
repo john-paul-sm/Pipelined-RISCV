@@ -28,6 +28,8 @@ module riscv_core (
 
 // Hazard / redirect control
 logic hz_stall; // hazard_detection_unit.stall (load-use)
+logic md_busy; // mul_div_unit.busy (M instruction in EX not finished)
+logic front_stall; // hold PC and IF/ID: load-use or M instruction
 logic ex_redirect; // branch_flush_unit.redirect (taken branch / jump)
 
 // IF
@@ -56,6 +58,7 @@ logic id_ALUSrcB;
 logic id_Branch;
 logic id_Jump;
 logic id_Jalr;
+logic id_MulDiv;
 logic [3:0] id_alu_op;
 
 // EX (id_ex_register outputs, then values made in EX)
@@ -74,6 +77,7 @@ logic ex_ALUSrcB;
 logic ex_Branch;
 logic ex_Jump;
 logic ex_Jalr;
+logic ex_MulDiv;
 logic ex_MemRead;
 logic ex_MemWrite;
 logic ex_RegWrite;
@@ -86,6 +90,8 @@ logic [31:0] ex_fwd_b; // FB output: current rs2 value
 logic [31:0] ex_alu_a; // SA output
 logic [31:0] ex_alu_b; // SB output
 logic [31:0] ex_alu_result;
+logic [31:0] ex_md_result; // mul_div_unit result
+logic [31:0] ex_result; // ALU result or mul_div_unit result -> EX/MEM
 logic [31:0] ex_pc_target; // B-type / JAL target
 logic [31:0] ex_target; // T output: redirect address
 logic [31:0] ex_pc_plus4; // JAL / JALR link value
@@ -113,6 +119,8 @@ logic wb_RegWrite;
 logic [1:0] wb_MemToReg;
 logic [31:0] wb_data; // W
 
+assign front_stall = hz_stall || md_busy;
+
 assign if_pc_plus4 = if_pc + 32'd4;
 
 
@@ -121,7 +129,7 @@ assign if_next_pc = ex_redirect ? ex_target : if_pc_plus4;
 program_counter u_pc (
     .clk(clk),
     .reset(reset),
-    .stall(hz_stall), 
+    .stall(front_stall),
     .pc_in(if_next_pc),
     .pc_out(if_pc)
 );
@@ -132,7 +140,7 @@ assign if_instr = imem_rdata;
 if_id_register u_if_id (
     .clk(clk),
     .reset(reset),
-    .stall(hz_stall), // load-use: keep the dependent instruction in ID
+    .stall(front_stall), // load-use: keep the dependent instruction in ID; M busy: hold
     .flush(ex_redirect), // taken branch / jump: the instruction in IF is wrong-path
     .valid_in(1'b1),
     .valid_out(id_valid),
@@ -158,6 +166,7 @@ control_unit u_control (
     .Branch(id_Branch),
     .Jump(id_Jump),
     .Jalr(id_Jalr),
+    .MulDiv(id_MulDiv),
     .alu_op(id_alu_op)
 );
 
@@ -190,7 +199,7 @@ hazard_detection_unit u_hazard (
 id_ex_register u_id_ex (
     .clk(clk),
     .reset(reset),
-    .stall(1'b0), // never holds: in a load-use stall the load must leave EX
+    .stall(md_busy), // holds the M instruction in EX until mul_div_unit finishes
     .flush(hz_stall || ex_redirect), // load-use bubble, or kill a wrong-path instruction
     .valid_in(id_valid),
     .valid_out(ex_valid),
@@ -210,6 +219,7 @@ id_ex_register u_id_ex (
     .Branch_in(id_Branch),
     .Jump_in(id_Jump),
     .Jalr_in(id_Jalr),
+    .MulDiv_in(id_MulDiv),
     .MemRead_in(id_MemRead),
     .MemWrite_in(id_MemWrite),
     .RegWrite_in(id_RegWrite),
@@ -230,6 +240,7 @@ id_ex_register u_id_ex (
     .Branch_out(ex_Branch),
     .Jump_out(ex_Jump),
     .Jalr_out(ex_Jalr),
+    .MulDiv_out(ex_MulDiv),
     .MemRead_out(ex_MemRead),
     .MemWrite_out(ex_MemWrite),
     .RegWrite_out(ex_RegWrite),
@@ -284,6 +295,19 @@ alu u_alu (
     .result(ex_alu_result)
 );
 
+mul_div_unit u_mul_div (
+    .clk(clk),
+    .reset(reset),
+    .start(ex_MulDiv),
+    .funct3(ex_funct3),
+    .operand_a(ex_fwd_a),
+    .operand_b(ex_fwd_b),
+    .busy(md_busy),
+    .result(ex_md_result)
+);
+
+assign ex_result = ex_MulDiv ? ex_md_result : ex_alu_result;
+
 assign ex_pc_target = ex_pc + ex_imm;
 
 
@@ -304,11 +328,11 @@ ex_mem_register u_ex_mem (
     .clk(clk),
     .reset(reset),
     .stall(1'b0),
-    .flush(1'b0),
+    .flush(md_busy), // bubble while the M instruction stays in EX
     .valid_in(ex_valid),
     .valid_out(mem_valid),
 
-    .alu_result_in(ex_alu_result),
+    .alu_result_in(ex_result),
     .rs2_data_in(ex_fwd_b), // store data must be the forwarded rs2 value
     .pc_plus4_in(ex_pc_plus4),
     .rd_addr_in(ex_rd_addr),

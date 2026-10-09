@@ -1,4 +1,4 @@
-read_slang rtl/riscv_ref.sv rtl/alu.sv rtl/branch_flush_unit.sv rtl/control_unit.sv rtl/program_counter.sv rtl/if_id_register.sv rtl/id_ex_register.sv rtl/ex_mem_register.sv rtl/mem_wb_register.sv rtl/register_file.sv rtl/immediate_generator.sv rtl/forwarding_unit.sv rtl/hazard_detection_unit.sv rtl/riscv_core.sv --top riscv_core
+read_slang rtl/riscv_ref.sv rtl/alu.sv rtl/branch_flush_unit.sv rtl/control_unit.sv rtl/program_counter.sv rtl/if_id_register.sv rtl/id_ex_register.sv rtl/ex_mem_register.sv rtl/mem_wb_register.sv rtl/register_file.sv rtl/immediate_generator.sv rtl/forwarding_unit.sv rtl/hazard_detection_unit.sv rtl/mul_div_unit.sv rtl/riscv_core.sv --top riscv_core
 hierarchy -check -top riscv_core
 synth -top riscv_core -flatten
 dfflibmap -liberty /home/johnp/.volare/sky130A/libs.ref/sky130_fd_sc_hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib

@@ -7,7 +7,7 @@ localparam logic [31:0] TOHOST = 32'h0000_07FC;
 logic clk, reset;
 
 string prog;
-longint cycles, retired, stalls, redirects;
+longint cycles, retired, stalls, md_stalls, redirects;
 logic done;
 logic [31:0] tohost_value;
 
@@ -36,6 +36,7 @@ always @(posedge clk) begin
         cycles <= 0;
         retired <= 0;
         stalls <= 0;
+        md_stalls <= 0;
         redirects <= 0;
         done <= 0;
         tohost_value <= 0;
@@ -44,6 +45,7 @@ always @(posedge clk) begin
         cycles <= cycles + 1;
         if (dut.u_core.wb_valid) retired <= retired + 1;
         if (dut.u_core.hz_stall) stalls <= stalls + 1;
+        if (dut.u_core.md_busy) md_stalls <= md_stalls + 1;
         if (dut.u_core.ex_redirect) redirects <= redirects + 1;
         if (dut.u_core.dmem_MemWrite && dut.u_core.dmem_addr == TOHOST) begin
             done <= 1;
@@ -83,6 +85,7 @@ initial begin
     $display("retired   = %0d", retired);
     $display("IPC       = %0.3f", real'(retired) / real'(cycles));
     $display("stalls    = %0d", stalls);
+    $display("md_stalls = %0d", md_stalls);
     $display("redirects = %0d", redirects);
 
     $display("=== %0d errors ===", errors);

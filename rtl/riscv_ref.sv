@@ -66,6 +66,21 @@ package riscv_ref;
     localparam logic[6:0] F7_ADD_SRL = 7'b0000000;
     localparam logic[6:0] F7_SUB_SRA = 7'b0100000;
 
+    // M extension: OP_R_TYPE with funct7 = 0000001
+
+    localparam logic[6:0] F7_MULDIV = 7'b0000001;
+
+    typedef enum logic[2:0] {
+        F3_MUL = 3'b000,
+        F3_MULH = 3'b001,
+        F3_MULHSU = 3'b010,
+        F3_MULHU = 3'b011,
+        F3_DIV = 3'b100,
+        F3_DIVU = 3'b101,
+        F3_REM = 3'b110,
+        F3_REMU = 3'b111
+    } funct3_M;
+
     typedef enum logic[3:0] {
         ALU_ADD = 4'b0000,
         ALU_SUB = 4'b0001,
