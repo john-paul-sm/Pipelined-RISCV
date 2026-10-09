@@ -15,5 +15,6 @@ fail. Then it loops forever (`jal x0, .`).
 | `isa_m.hex` | Runs every M instruction (RV32IM) with signed, unsigned, divide-by-zero and signed-overflow operands. Then tests pipeline hazards around the iterative `mul_div_unit`: operands forwarded from MEM and WB, load-use into an M instruction, the M result forwarded to an ALU instruction, a branch and a store, back-to-back dependent M instructions, an M instruction that writes `x0`, and M instructions on the wrong path of a taken branch and `jal`. | tohost = 1 |
 | `fir_m.hex` | `fir.hex` with each call to the software multiply replaced by one `mul` instruction. Same data and same result. Measures the M extension against `fir.hex`. | mem[0x100] = Σ y = `0xFFFFFC70` |
 | `matmul.hex` | 8×8 signed matrix multiply `C = A × B` with the `mul` instruction (RV32IM): 512 multiply-accumulates. A and B come from an LCG (`x = x × 1103515245 + 12345`, seed 1, value = `((x >> 16) & 31) − 16`). Then a checksum `c = rotl(c, 1) ^ C[i][j]` over C, row-major. Each `mul` result goes directly into a dependent `add`. | mem[0x100] = `0xD5B51F45` |
+| `matmul_sw.hex` | `matmul.hex` for RV32I: each `mul` is replaced by a call to the shift-and-add multiply routine from `fir.hex`. Same data and same result. Baseline for `matmul.hex`. | mem[0x100] = `0xD5B51F45` |
 
 `asm/common.inc` holds the pass/fail macros shared by all programs.

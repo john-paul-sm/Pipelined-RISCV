@@ -1,3 +1,20 @@
-.vscode/
+# Verilator build output and waveforms
 obj_dir/
 *.vcd
+*.fst
+
+# Synthesis and STA output (regenerate with synth/synth_core.ys and synth/sta_core.tcl)
+build/
+
+# Assembler intermediates
+*.o
+*.elf
+*.bin
+
+# Editor and OS files
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini

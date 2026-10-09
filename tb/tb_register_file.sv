@@ -7,8 +7,13 @@ localparam CLOCK_PERIOD = 10;
 logic clk, reset, RegWrite;
 logic [4:0] wr_addr, rs1_addr, rs2_addr;
 logic [31:0] wr_data, rd_data1, rd_data2;
+logic [31:0] model [0:31];
+logic [31:0] expected1, expected2;
+
+localparam RANDOM_CYCLES = 20000;
 
 int errors = 0;
+int mismatches = 0;
 
 register_file dut (
     .clk(clk),
@@ -143,6 +148,35 @@ initial begin
     rs1_addr = 5'd9;
     #1;
     check(rd_data1, 32'hABBA_ABBA, "RegWrite gates the write");
+
+    // Test 7: random writes and reads vs. a reference model
+    // model[] holds the expected register values; reads use the write-first rule
+    @(negedge clk);
+    reset = 1;
+    RegWrite = 0;
+    @(posedge clk);
+    @(negedge clk);
+    reset = 0;
+    for (int r = 0; r < 32; r++) model[r] = 32'b0;
+    for (int i = 0; i < RANDOM_CYCLES; i++) begin
+        RegWrite = 1'($urandom);
+        wr_addr = 5'($urandom);
+        wr_data = $urandom;
+        rs1_addr = ($urandom_range(0, 3) == 0) ? wr_addr : 5'($urandom);
+        rs2_addr = 5'($urandom);
+        #1;
+        expected1 = (RegWrite && rs1_addr == wr_addr && wr_addr != 5'd0) ? wr_data : model[rs1_addr];
+        expected2 = (RegWrite && rs2_addr == wr_addr && wr_addr != 5'd0) ? wr_data : model[rs2_addr];
+        if ((rd_data1 !== expected1) || (rd_data2 !== expected2)) begin
+            mismatches++;
+            if (mismatches <= 5) $display("Mismatch: cycle %0d rs1=%0d rd_data1=%h expected %h, rs2=%0d rd_data2=%h expected %h", i, rs1_addr, rd_data1, expected1, rs2_addr, rd_data2, expected2);
+        end
+        @(posedge clk);
+        if (RegWrite && wr_addr != 5'd0) model[wr_addr] = wr_data;
+        @(negedge clk);
+    end
+    RegWrite = 0;
+    check(mismatches, 32'd0, "20000 random cycles match the reference model");
 
     $display("=== %0d errors ===", errors);
     $finish;

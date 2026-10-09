@@ -3,8 +3,13 @@
 module tb_immediate_generator;
 
 logic [31:0] instruction, immediate;
+logic [31:0] expected_imm;
+logic [6:0] opcodes [0:9];
+
+localparam RANDOM_TESTS = 100000;
 
 int errors = 0;
+int mismatches = 0;
 
 immediate_generator dut (
     .instruction(instruction),
@@ -30,6 +35,17 @@ else begin
     $display("Passed: %s", label);
 end
 endtask
+
+function automatic logic [31:0] reference(input logic [31:0] i);
+    case (i[6:0])
+        7'b0010011, 7'b0000011, 7'b1100111: return {{20{i[31]}}, i[31:20]};
+        7'b0100011: return {{20{i[31]}}, i[31:25], i[11:7]};
+        7'b1100011: return {{19{i[31]}}, i[31], i[7], i[30:25], i[11:8], 1'b0};
+        7'b0110111, 7'b0010111: return {i[31:12], 12'b0};
+        7'b1101111: return {{11{i[31]}}, i[31], i[19:12], i[20], i[30:21], 1'b0};
+        default: return 32'h0000_0000;
+    endcase
+endfunction
 
 initial begin
 
@@ -108,6 +124,21 @@ initial begin
     instruction = 32'h0000_0073;
     #1;
     check(immediate, 32'h0000_0000, "unknown opcode yields zero");
+
+    // Test 13: random instructions vs. a reference model
+    // 9 of 10 use an opcode with an immediate (all other bits random), 1 of 10 is fully random
+    opcodes = '{7'b0010011, 7'b0000011, 7'b1100111, 7'b0100011, 7'b1100011, 7'b0110111, 7'b0010111, 7'b1101111, 7'b0110011, 7'b1110011};
+    for (int t = 0; t < RANDOM_TESTS; t++) begin
+        instruction = $urandom;
+        if ($urandom_range(0, 9) != 0) instruction[6:0] = opcodes[$urandom_range(0, 9)];
+        #1;
+        expected_imm = reference(instruction);
+        if (immediate !== expected_imm) begin
+            mismatches++;
+            if (mismatches <= 5) $display("Mismatch: instruction=%h immediate=%h expected %h", instruction, immediate, expected_imm);
+        end
+    end
+    check(mismatches, 32'd0, "100000 random instructions match the reference model");
 
     $display("=== %0d errors ===", errors);
     $finish;

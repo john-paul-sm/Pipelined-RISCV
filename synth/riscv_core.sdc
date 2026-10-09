@@ -1,4 +1,4 @@
-create_clock -name clk -period 10.0 [get_ports clk]
+create_clock -name clk -period 10.4 [get_ports clk]
 set_input_delay 2.0 -clock clk [get_ports {reset imem_rdata* dmem_rdata*}]
 set_output_delay 2.0 -clock clk [all_outputs]
 set_driving_cell -lib_cell sky130_fd_sc_hd__buf_2 -pin X [get_ports {reset imem_rdata* dmem_rdata*}]
