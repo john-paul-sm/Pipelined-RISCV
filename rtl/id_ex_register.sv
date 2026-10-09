@@ -3,6 +3,7 @@ module id_ex_register (
     input logic reset,
     input logic stall,
     input logic flush,
+    input logic valid_in,
 
     // Data from ID
     input logic [31:0] pc_in,          // AUIPC, branch/JAL target, PC+4
@@ -30,6 +31,7 @@ module id_ex_register (
     input logic [1:0] MemToReg_in,
 
     // Outputs to EX
+    output logic valid_out,
     output logic [31:0] pc_out,
     output logic [31:0] rs1_data_out,
     output logic [31:0] rs2_data_out,
@@ -53,6 +55,7 @@ module id_ex_register (
 
 always_ff @(posedge clk) begin
     if (reset || flush) begin
+        valid_out <= 1'b0;
         // Bubble: RegWrite, MemRead, MemWrite, Branch, Jump all 0,
         // so this slot cannot change any register, memory or the PC.
         pc_out <= 32'b0;
@@ -76,6 +79,7 @@ always_ff @(posedge clk) begin
         MemToReg_out <= 2'b0;
     end
     else if (stall) begin
+        valid_out <= valid_out;
         pc_out <= pc_out;
         rs1_data_out <= rs1_data_out;
         rs2_data_out <= rs2_data_out;
@@ -97,6 +101,7 @@ always_ff @(posedge clk) begin
         MemToReg_out <= MemToReg_out;
     end
     else begin
+        valid_out <= valid_in;
         pc_out <= pc_in;
         rs1_data_out <= rs1_data_in;
         rs2_data_out <= rs2_data_in;

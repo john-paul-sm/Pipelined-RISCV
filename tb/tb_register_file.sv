@@ -1,0 +1,151 @@
+`timescale 1ns / 1ps
+
+module tb_register_file;
+
+localparam CLOCK_PERIOD = 10;
+
+logic clk, reset, RegWrite;
+logic [4:0] wr_addr, rs1_addr, rs2_addr;
+logic [31:0] wr_data, rd_data1, rd_data2;
+
+int errors = 0;
+
+register_file dut (
+    .clk(clk),
+    .reset(reset),
+    .RegWrite(RegWrite),
+    .wr_addr(wr_addr),
+    .wr_data(wr_data),
+    .rs1_addr(rs1_addr),
+    .rs2_addr(rs2_addr),
+    .rd_data1(rd_data1),
+    .rd_data2(rd_data2)
+);
+
+initial begin
+    $dumpfile("tb_register_file.vcd");
+    $dumpvars(0, tb_register_file);
+end
+
+initial begin
+    clk = 0;
+    forever #(CLOCK_PERIOD/2) clk = ~clk;
+end
+
+task check(
+    input logic [31:0] observed, 
+    input logic [31:0] expected,
+    input string label
+);
+
+if (observed !== expected) begin
+    $error("%s: expected %h, got %h", label, expected, observed);
+    errors++;
+end
+else begin
+    $display("Passed: %s", label);
+end
+endtask
+
+initial begin
+    reset = 0;
+    RegWrite = 0;
+    wr_addr = 0;
+    wr_data = 0;
+    rs1_addr = 0;
+    rs2_addr = 0;
+
+    // Test 1: Check reset functionality
+
+    reset = 1;
+    @(posedge clk);
+    @(posedge clk);
+    @(negedge clk);
+    reset = 0;
+    rs1_addr = 5'd5;
+    rs2_addr = 5'd17;
+    #1; 
+    check(rd_data1, 32'h0, "Reset clears x5");
+    check(rd_data2, 32'h0, "Reset clears x17");
+
+    // Test 2: Check write functionality
+
+    @(negedge clk);
+    RegWrite = 1;
+    wr_addr = 5'd5;
+    wr_data = 32'hAABB_CCDD;
+    @(posedge clk);
+    @(negedge clk);
+    RegWrite = 0;
+    rs1_addr = 5'd5;
+    #1;
+    check(rd_data1, 32'hAABB_CCDD, "write x5 then read back");
+
+    // Test 3: Check reads functionality
+
+    @(negedge clk);
+    RegWrite = 1;
+    wr_addr = 5'd17;
+    wr_data = 32'hEEFF_0011;
+    @(posedge clk);
+    @(negedge clk);
+    RegWrite = 0;
+    rs1_addr = 5'd5;
+    rs2_addr = 5'd17;
+    #1;
+    check(rd_data1, 32'hAABB_CCDD, "read back x5");
+    check(rd_data2, 32'hEEFF_0011, "read back x17");
+
+    // Test 4: Check x0 guard
+
+    @(negedge clk);
+    RegWrite = 1;
+    wr_addr = 5'd0;
+    wr_data = 32'hDEAD_BEEF;
+    @(posedge clk);
+    @(negedge clk);
+    RegWrite = 0;
+    rs1_addr = 5'd0;
+    #1;
+    check(rd_data1, 32'h0, "write x0 is discarded");
+
+    @(negedge clk);
+    RegWrite = 1;
+    wr_addr = 5'd0;
+    wr_data = 32'hDEAD_BEEF;
+    rs1_addr = 5'd0;
+    #1;
+    check(rd_data1, 32'h0, "write x0 is blocked");
+
+    // Test 5: Check write-first functionality
+
+    @(negedge clk);
+    RegWrite = 1;
+    wr_addr = 5'd7;
+    wr_data = 32'h1234_5678;
+    rs1_addr = 5'd7;
+    #1;
+    check(rd_data1, 32'h1234_5678, "write first is functional");
+
+    // Test 6: Check RegWrite functionality
+
+    @(negedge clk);
+    RegWrite = 1;
+    wr_addr = 5'd9;
+    wr_data = 32'hABBA_ABBA;
+    @(posedge clk);
+    @(negedge clk);
+    RegWrite = 0;
+    wr_addr = 5'd9;
+    wr_data = 32'hB0B0_B0B0;
+    @(posedge clk);
+    @(negedge clk);
+    rs1_addr = 5'd9;
+    #1;
+    check(rd_data1, 32'hABBA_ABBA, "RegWrite gates the write");
+
+    $display("=== %0d errors ===", errors);
+    $finish;
+end
+
+endmodule

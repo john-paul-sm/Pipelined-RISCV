@@ -38,6 +38,7 @@ logic [31:0] if_instr;
 
 // ID
 logic [31:0] id_pc;
+logic id_valid;
 logic [31:0] id_instr;
 logic [4:0] id_rs1_addr;
 logic [4:0] id_rs2_addr;
@@ -59,6 +60,7 @@ logic [3:0] id_alu_op;
 
 // EX (id_ex_register outputs, then values made in EX)
 logic [31:0] ex_pc;
+logic ex_valid;
 logic [31:0] ex_rs1_data;
 logic [31:0] ex_rs2_data;
 logic [31:0] ex_imm;
@@ -90,6 +92,7 @@ logic [31:0] ex_pc_plus4; // JAL / JALR link value
 
 // MEM (ex_mem_register outputs, then values made in MEM)
 logic [31:0] mem_alu_result;
+logic mem_valid;
 logic [31:0] mem_rs2_data;
 logic [31:0] mem_pc_plus4;
 logic [4:0] mem_rd_addr;
@@ -102,6 +105,7 @@ logic [31:0] mem_fwd_value; // M
 
 // WB (mem_wb_register outputs, then the WB mux)
 logic [31:0] wb_load_data;
+logic wb_valid;
 logic [31:0] wb_alu_result;
 logic [31:0] wb_pc_plus4;
 logic [4:0] wb_rd_addr;
@@ -130,6 +134,8 @@ if_id_register u_if_id (
     .reset(reset),
     .stall(hz_stall), // load-use: keep the dependent instruction in ID
     .flush(ex_redirect), // taken branch / jump: the instruction in IF is wrong-path
+    .valid_in(1'b1),
+    .valid_out(id_valid),
     .pc_in(if_pc),
     .instr_in(if_instr),
     .pc_out(id_pc),
@@ -186,6 +192,8 @@ id_ex_register u_id_ex (
     .reset(reset),
     .stall(1'b0), // never holds: in a load-use stall the load must leave EX
     .flush(hz_stall || ex_redirect), // load-use bubble, or kill a wrong-path instruction
+    .valid_in(id_valid),
+    .valid_out(ex_valid),
 
     .pc_in(id_pc),
     .rs1_data_in(id_rs1_data),
@@ -297,6 +305,8 @@ ex_mem_register u_ex_mem (
     .reset(reset),
     .stall(1'b0),
     .flush(1'b0),
+    .valid_in(ex_valid),
+    .valid_out(mem_valid),
 
     .alu_result_in(ex_alu_result),
     .rs2_data_in(ex_fwd_b), // store data must be the forwarded rs2 value
@@ -330,6 +340,8 @@ mem_wb_register u_mem_wb (
     .reset(reset),
     .stall(1'b0),
     .flush(1'b0),
+    .valid_in(mem_valid),
+    .valid_out(wb_valid),
 
     .load_data_in(mem_load_data),
     .alu_result_in(mem_alu_result),
