@@ -9,6 +9,7 @@ report_clock_min_period
 report_clock_min_period -include_port_paths
 report_checks -path_delay min -digits 3
 report_checks -path_delay max -fields {slew cap fanout net} -digits 3
+report_check_types -max_slew -max_fanout -max_capacitance -violators
 set_power_activity -global -activity 0.1 -duty 0.5
 report_power
 report_power -highest_power_instances 10
