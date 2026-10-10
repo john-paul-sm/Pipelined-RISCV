@@ -34,17 +34,17 @@ function automatic logic [31:0] reference(
     input logic [31:0] a,
     input logic [31:0] b
 );
-    logic signed [63:0] product_ss;
-    logic signed [64:0] product_su;
-    logic [63:0] product_uu;
-    product_ss = $signed({{32{a[31]}}, a}) * $signed({{32{b[31]}}, b});
-    product_su = $signed({{33{a[31]}}, a}) * $signed({33'd0, b});
-    product_uu = {32'd0, a} * {32'd0, b};
+    logic signed [63:0] product_signed_signed;
+    logic signed [64:0] product_signed_unsigned;
+    logic [63:0] product_unsigned_unsigned;
+    product_signed_signed = $signed({{32{a[31]}}, a}) * $signed({{32{b[31]}}, b});
+    product_signed_unsigned = $signed({{33{a[31]}}, a}) * $signed({33'd0, b});
+    product_unsigned_unsigned = {32'd0, a} * {32'd0, b};
     case (f3)
-        3'b000: return product_uu[31:0];
-        3'b001: return product_ss[63:32];
-        3'b010: return product_su[63:32];
-        3'b011: return product_uu[63:32];
+        3'b000: return product_unsigned_unsigned[31:0];
+        3'b001: return product_signed_signed[63:32];
+        3'b010: return product_signed_unsigned[63:32];
+        3'b011: return product_unsigned_unsigned[63:32];
         3'b100: begin
             if (b == 0) return 32'hFFFF_FFFF;
             if (a == 32'h8000_0000 && b == 32'hFFFF_FFFF) return 32'h8000_0000;
@@ -109,21 +109,21 @@ initial begin
     #1;
     reset = 0;
 
-    for (int f = 0; f < 8; f++) begin
-        run(f[2:0], 32'd7, 32'd3, "small");
-        run(f[2:0], 32'hFFFF_FFF9, 32'd3, "neg a");
-        run(f[2:0], 32'd7, 32'hFFFF_FFFD, "neg b");
-        run(f[2:0], 32'hFFFF_FFF9, 32'hFFFF_FFFD, "neg a neg b");
-        run(f[2:0], 32'd12345, 32'd0, "divide by zero");
-        run(f[2:0], 32'hFFFF_FFF9, 32'd0, "neg divide by zero");
-        run(f[2:0], 32'd0, 32'd0, "zero by zero");
-        run(f[2:0], 32'h8000_0000, 32'hFFFF_FFFF, "overflow");
-        run(f[2:0], 32'h8000_0000, 32'h8000_0000, "min by min");
-        run(f[2:0], 32'hFFFF_FFFF, 32'hFFFF_FFFF, "all ones");
-        run(f[2:0], 32'h7FFF_FFFF, 32'h7FFF_FFFF, "max by max");
-        run(f[2:0], 32'h0000_0000, 32'h1234_5678, "zero a");
-        run(f[2:0], 32'h1234_5678, 32'd1, "by one");
-        run(f[2:0], 32'd3, 32'd7, "a less than b");
+    for (int funct3_value = 0; funct3_value < 8; funct3_value++) begin
+        run(funct3_value[2:0], 32'd7, 32'd3, "small");
+        run(funct3_value[2:0], 32'hFFFF_FFF9, 32'd3, "neg a");
+        run(funct3_value[2:0], 32'd7, 32'hFFFF_FFFD, "neg b");
+        run(funct3_value[2:0], 32'hFFFF_FFF9, 32'hFFFF_FFFD, "neg a neg b");
+        run(funct3_value[2:0], 32'd12345, 32'd0, "divide by zero");
+        run(funct3_value[2:0], 32'hFFFF_FFF9, 32'd0, "neg divide by zero");
+        run(funct3_value[2:0], 32'd0, 32'd0, "zero by zero");
+        run(funct3_value[2:0], 32'h8000_0000, 32'hFFFF_FFFF, "overflow");
+        run(funct3_value[2:0], 32'h8000_0000, 32'h8000_0000, "min by min");
+        run(funct3_value[2:0], 32'hFFFF_FFFF, 32'hFFFF_FFFF, "all ones");
+        run(funct3_value[2:0], 32'h7FFF_FFFF, 32'h7FFF_FFFF, "max by max");
+        run(funct3_value[2:0], 32'h0000_0000, 32'h1234_5678, "zero a");
+        run(funct3_value[2:0], 32'h1234_5678, 32'd1, "by one");
+        run(funct3_value[2:0], 32'd3, 32'd7, "a less than b");
     end
 
     for (int i = 0; i < RANDOM_TESTS; i++) begin

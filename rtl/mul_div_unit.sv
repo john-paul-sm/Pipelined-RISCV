@@ -11,143 +11,143 @@ module mul_div_unit import riscv_ref::*; (
 
 typedef enum logic [2:0] {
     S_IDLE,
-    S_ABS,
-    S_CALC,
+    S_ABSOLUTE,
+    S_CALCULATE,
     S_FIX,
-    S_FIX_HI,
+    S_FIX_HIGH,
     S_DONE
 } state_enum;
 
 state_enum state;
 logic [4:0] count;
 
-logic [31:0] hi;
-logic [31:0] lo;
-logic [31:0] opa;
+logic [31:0] high;
+logic [31:0] low;
+logic [31:0] multiplicand_divisor;
 
-logic is_div; // 1 = DIV/DIVU/REM/REMU
-logic a_signed; // rs1 is a signed operand
-logic b_signed; // rs2 is a signed operand
-logic a_neg;
-logic b_neg;
+logic is_divide; // 1 = DIV/DIVU/REM/REMU
+logic operand_a_signed; // rs1 is a signed operand
+logic operand_b_signed; // rs2 is a signed operand
+logic operand_a_negative;
+logic operand_b_negative;
 
-logic op_is_div; // registered is_div
-logic neg_opa; // ABS: negate opa
-logic neg_lo; // ABS: negate lo
-logic neg_hi_res; // FIX: negate hi (remainder) / sign of the 64-bit product
-logic neg_lo_res; // FIX: negate lo (quotient / low half of the product)
-logic lo_zero; // FIX -> FIX_HI: lo was 0, so the +1 of -{hi, lo} carries into hi
+logic operation_is_divide; // registered is_divide
+logic negate_multiplicand_divisor; // ABSOLUTE: negate multiplicand_divisor
+logic negate_low; // ABSOLUTE: negate low
+logic negate_high_result; // FIX: negate high (remainder) / sign of the 64-bit product
+logic negate_low_result; // FIX: negate low (quotient / low half of the product)
+logic low_is_zero; // FIX -> FIX_HIGH: low was 0, so the +1 of -{high, low} carries into high
 
-logic [32:0] add_x;
-logic [32:0] add_y;
-logic add_cin;
+logic [32:0] adder_input_a;
+logic [32:0] adder_input_b;
+logic adder_carry_in;
 logic [32:0] sum;
 
-logic [31:0] lo_negated;
-logic [31:0] opa_negated;
-logic [31:0] hi_negated_32; // -hi, for the remainder
-logic [31:0] hi_negated_64; // upper half of -{hi, lo}, for the product (uses lo_zero)
+logic [31:0] low_negated;
+logic [31:0] multiplicand_divisor_negated;
+logic [31:0] high_negated_32; // -high, for the remainder
+logic [31:0] high_negated_64; // upper half of -{high, low}, for the product (uses low_is_zero)
 
-assign is_div = funct3[2];
-assign a_signed = (funct3 == F3_MULH) || (funct3 == F3_MULHSU) || (funct3 == F3_DIV) || (funct3 == F3_REM);
-assign b_signed = (funct3 == F3_MULH) || (funct3 == F3_DIV) || (funct3 == F3_REM);
-assign a_neg = a_signed && operand_a[31];
-assign b_neg = b_signed && operand_b[31];
+assign is_divide = funct3[2];
+assign operand_a_signed = (funct3 == F3_MULH) || (funct3 == F3_MULHSU) || (funct3 == F3_DIV) || (funct3 == F3_REM);
+assign operand_b_signed = (funct3 == F3_MULH) || (funct3 == F3_DIV) || (funct3 == F3_REM);
+assign operand_a_negative = operand_a_signed && operand_a[31];
+assign operand_b_negative = operand_b_signed && operand_b[31];
 
 // Shared adder.
-// multiply : {0, hi} + (lo[0] ? {0, opa} : 0)
-// divide   : {hi, lo[31]} - {0, opa}   (sum[32] = 1 means the subtraction went negative)
+// multiply : {0, high} + (low[0] ? {0, multiplicand_divisor} : 0)
+// divide   : {high, low[31]} - {0, multiplicand_divisor}   (sum[32] = 1 means the subtraction went negative)
 always_comb begin
-    if (op_is_div) begin
-        add_x = {hi, lo[31]};
-        add_y = ~{1'b0, opa};
-        add_cin = 1'b1;
+    if (operation_is_divide) begin
+        adder_input_a = {high, low[31]};
+        adder_input_b = ~{1'b0, multiplicand_divisor};
+        adder_carry_in = 1'b1;
     end
     else begin
-        add_x = {1'b0, hi};
-        add_y = lo[0] ? {1'b0, opa} : 33'd0;
-        add_cin = 1'b0;
+        adder_input_a = {1'b0, high};
+        adder_input_b = low[0] ? {1'b0, multiplicand_divisor} : 33'd0;
+        adder_carry_in = 1'b0;
     end
 end
 
-assign sum = add_x + add_y + {32'd0, add_cin};
+assign sum = adder_input_a + adder_input_b + {32'd0, adder_carry_in};
 
-assign lo_negated = ~lo + 32'd1;
-assign opa_negated = ~opa + 32'd1;
-assign hi_negated_32 = ~hi + 32'd1;
-assign hi_negated_64 = ~hi + {31'd0, lo_zero};
+assign low_negated = ~low + 32'd1;
+assign multiplicand_divisor_negated = ~multiplicand_divisor + 32'd1;
+assign high_negated_32 = ~high + 32'd1;
+assign high_negated_64 = ~high + {31'd0, low_is_zero};
 
 always_ff @(posedge clk) begin
     if (reset) begin
         state <= S_IDLE;
         count <= 5'd0;
-        hi <= 32'd0;
-        lo <= 32'd0;
-        opa <= 32'd0;
-        op_is_div <= 1'b0;
-        neg_opa <= 1'b0;
-        neg_lo <= 1'b0;
-        neg_hi_res <= 1'b0;
-        neg_lo_res <= 1'b0;
-        lo_zero <= 1'b0;
+        high <= 32'd0;
+        low <= 32'd0;
+        multiplicand_divisor <= 32'd0;
+        operation_is_divide <= 1'b0;
+        negate_multiplicand_divisor <= 1'b0;
+        negate_low <= 1'b0;
+        negate_high_result <= 1'b0;
+        negate_low_result <= 1'b0;
+        low_is_zero <= 1'b0;
     end
     else begin
         case (state)
             S_IDLE: begin
                 if (start) begin
-                    hi <= 32'd0;
-                    lo <= is_div ? operand_a : operand_b;
-                    opa <= is_div ? operand_b : operand_a;
-                    op_is_div <= is_div;
-                    neg_opa <= is_div ? b_neg : a_neg;
-                    neg_lo <= is_div ? a_neg : b_neg;
-                    if (is_div) begin
-                        neg_lo_res <= a_neg ^ b_neg; // cleared in ABS when the divisor is 0
-                        neg_hi_res <= a_neg;
+                    high <= 32'd0;
+                    low <= is_divide ? operand_a : operand_b;
+                    multiplicand_divisor <= is_divide ? operand_b : operand_a;
+                    operation_is_divide <= is_divide;
+                    negate_multiplicand_divisor <= is_divide ? operand_b_negative : operand_a_negative;
+                    negate_low <= is_divide ? operand_a_negative : operand_b_negative;
+                    if (is_divide) begin
+                        negate_low_result <= operand_a_negative ^ operand_b_negative; // cleared in ABSOLUTE when the divisor is 0
+                        negate_high_result <= operand_a_negative;
                     end
                     else begin
-                        neg_lo_res <= a_neg ^ b_neg;
-                        neg_hi_res <= a_neg ^ b_neg;
+                        negate_low_result <= operand_a_negative ^ operand_b_negative;
+                        negate_high_result <= operand_a_negative ^ operand_b_negative;
                     end
-                    state <= S_ABS;
+                    state <= S_ABSOLUTE;
                 end
             end
 
-            S_ABS: begin
-                if (neg_opa) opa <= opa_negated;
-                if (neg_lo) lo <= lo_negated;
-                if (op_is_div && (opa == 32'd0)) neg_lo_res <= 1'b0; // x / 0: quotient stays all ones
+            S_ABSOLUTE: begin
+                if (negate_multiplicand_divisor) multiplicand_divisor <= multiplicand_divisor_negated;
+                if (negate_low) low <= low_negated;
+                if (operation_is_divide && (multiplicand_divisor == 32'd0)) negate_low_result <= 1'b0; // x / 0: quotient stays all ones
                 count <= 5'd0;
-                state <= S_CALC;
+                state <= S_CALCULATE;
             end
 
-            S_CALC: begin
-                if (op_is_div) begin
-                    hi <= sum[32] ? {hi[30:0], lo[31]} : sum[31:0];
-                    lo <= {lo[30:0], ~sum[32]};
+            S_CALCULATE: begin
+                if (operation_is_divide) begin
+                    high <= sum[32] ? {high[30:0], low[31]} : sum[31:0];
+                    low <= {low[30:0], ~sum[32]};
                 end
                 else begin
-                    hi <= sum[32:1];
-                    lo <= {sum[0], lo[31:1]};
+                    high <= sum[32:1];
+                    low <= {sum[0], low[31:1]};
                 end
                 count <= count + 5'd1;
                 if (count == 5'd31) state <= S_FIX;
             end
 
             S_FIX: begin
-                if (op_is_div) begin
-                    if (neg_lo_res) lo <= lo_negated;
-                    if (neg_hi_res) hi <= hi_negated_32;
+                if (operation_is_divide) begin
+                    if (negate_low_result) low <= low_negated;
+                    if (negate_high_result) high <= high_negated_32;
                 end
-                else if (neg_lo_res) begin
-                    lo <= lo_negated;
+                else if (negate_low_result) begin
+                    low <= low_negated;
                 end
-                lo_zero <= (lo == 32'd0);
-                state <= S_FIX_HI;
+                low_is_zero <= (low == 32'd0);
+                state <= S_FIX_HIGH;
             end
 
-            S_FIX_HI: begin
-                if (!op_is_div && neg_hi_res) hi <= hi_negated_64;
+            S_FIX_HIGH: begin
+                if (!operation_is_divide && negate_high_result) high <= high_negated_64;
                 state <= S_DONE;
             end
 
@@ -162,7 +162,7 @@ end
 
 assign busy = start && (state != S_DONE);
 
-// MUL, DIV, DIVU -> lo ; MULH, MULHSU, MULHU, REM, REMU -> hi
-assign result = ((funct3 == F3_MUL) || (funct3 == F3_DIV) || (funct3 == F3_DIVU)) ? lo : hi;
+// MUL, DIV, DIVU -> low ; MULH, MULHSU, MULHU, REM, REMU -> high
+assign result = ((funct3 == F3_MUL) || (funct3 == F3_DIV) || (funct3 == F3_DIVU)) ? low : high;
 
 endmodule

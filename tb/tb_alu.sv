@@ -4,16 +4,16 @@ import riscv_ref::*;
 
 localparam RANDOM_TESTS = 100000;
 
-logic [31:0] a, b, result;
-logic [3:0] op;
+logic [31:0] operand_a, operand_b, result;
+logic [3:0] alu_op;
 
 int errors = 0;
 int mismatches = 0;
 
 alu dut (
-    .a(a),
-    .b(b),
-    .op(op),
+    .operand_a(operand_a),
+    .operand_b(operand_b),
+    .alu_op(alu_op),
     .result(result)
 );
 
@@ -38,11 +38,11 @@ end
 endtask
 
 function automatic logic [31:0] reference(
-    input logic [3:0] alu_op,
+    input logic [3:0] alu_op_value,
     input logic [31:0] x,
     input logic [31:0] y
 );
-    case (alu_op)
+    case (alu_op_value)
         4'd0: return x + y;
         4'd1: return x - y;
         4'd2: return x << y[4:0];
@@ -58,15 +58,15 @@ function automatic logic [31:0] reference(
 endfunction
 
 task run(
-    input logic [3:0] alu_op,
+    input logic [3:0] alu_op_value,
     input logic [31:0] x,
     input logic [31:0] y,
     input logic [31:0] expected,
     input string label
 );
-    op = alu_op;
-    a = x;
-    b = y;
+    alu_op = alu_op_value;
+    operand_a = x;
+    operand_b = y;
     #1;
     check(result, expected, label);
 endtask
@@ -106,13 +106,13 @@ initial begin
 
     // Test 6: random inputs vs. a reference model
     for (int i = 0; i < RANDOM_TESTS; i++) begin
-        op = 4'($urandom_range(0, 15));
-        a = $urandom;
-        b = $urandom;
+        alu_op = 4'($urandom_range(0, 15));
+        operand_a = $urandom;
+        operand_b = $urandom;
         #1;
-        if (result !== reference(op, a, b)) begin
+        if (result !== reference(alu_op, operand_a, operand_b)) begin
             mismatches++;
-            if (mismatches <= 5) $display("Mismatch: op=%0d a=%h b=%h result=%h expected=%h", op, a, b, result, reference(op, a, b));
+            if (mismatches <= 5) $display("Mismatch: op=%0d a=%h b=%h result=%h expected=%h", alu_op, operand_a, operand_b, result, reference(alu_op, operand_a, operand_b));
         end
     end
     check(mismatches, 32'd0, "result matches the reference for 100000 random inputs");

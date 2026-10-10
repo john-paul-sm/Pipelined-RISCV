@@ -9,10 +9,10 @@ module id_ex_register (
     input logic [31:0] pc_in,          // AUIPC, branch/JAL target, PC+4
     input logic [31:0] rs1_data_in,    // ALU operand A
     input logic [31:0] rs2_data_in,    // ALU operand B / store data
-    input logic [31:0] imm_in,         // immediate operand
-    input logic [4:0] rs1_addr_in,    // for the forwarding unit
-    input logic [4:0] rs2_addr_in,    // for the forwarding unit
-    input logic [4:0] rd_addr_in,     // destination, travels to WB
+    input logic [31:0] immediate_in,         // immediate operand
+    input logic [4:0] rs1_address_in,    // for the forwarding unit
+    input logic [4:0] rs2_address_in,    // for the forwarding unit
+    input logic [4:0] rd_address_in,     // destination, travels to WB
     input logic [2:0] funct3_in,      // branch type, load/store width
 
     // Control from Control Unit
@@ -36,10 +36,10 @@ module id_ex_register (
     output logic [31:0] pc_out,
     output logic [31:0] rs1_data_out,
     output logic [31:0] rs2_data_out,
-    output logic [31:0] imm_out,
-    output logic [4:0] rs1_addr_out,
-    output logic [4:0] rs2_addr_out,
-    output logic [4:0] rd_addr_out,
+    output logic [31:0] immediate_out,
+    output logic [4:0] rs1_address_out,
+    output logic [4:0] rs2_address_out,
+    output logic [4:0] rd_address_out,
     output logic [2:0] funct3_out,
 
     output logic [3:0] alu_op_out,
@@ -63,10 +63,10 @@ always_ff @(posedge clk) begin
         pc_out <= 32'b0;
         rs1_data_out <= 32'b0;
         rs2_data_out <= 32'b0;
-        imm_out <= 32'b0;
-        rs1_addr_out <= 5'b0;
-        rs2_addr_out <= 5'b0;
-        rd_addr_out <= 5'b0;
+        immediate_out <= 32'b0;
+        rs1_address_out <= 5'b0;
+        rs2_address_out <= 5'b0;
+        rd_address_out <= 5'b0;
         funct3_out <= 3'b0;
 
         alu_op_out <= 4'b0;
@@ -86,10 +86,10 @@ always_ff @(posedge clk) begin
         pc_out <= pc_out;
         rs1_data_out <= rs1_data_out;
         rs2_data_out <= rs2_data_out;
-        imm_out <= imm_out;
-        rs1_addr_out <= rs1_addr_out;
-        rs2_addr_out <= rs2_addr_out;
-        rd_addr_out <= rd_addr_out;
+        immediate_out <= immediate_out;
+        rs1_address_out <= rs1_address_out;
+        rs2_address_out <= rs2_address_out;
+        rd_address_out <= rd_address_out;
         funct3_out <= funct3_out;
  
         alu_op_out <= alu_op_out;
@@ -109,10 +109,10 @@ always_ff @(posedge clk) begin
         pc_out <= pc_in;
         rs1_data_out <= rs1_data_in;
         rs2_data_out <= rs2_data_in;
-        imm_out <= imm_in;
-        rs1_addr_out <= rs1_addr_in;
-        rs2_addr_out <= rs2_addr_in;
-        rd_addr_out <= rd_addr_in;
+        immediate_out <= immediate_in;
+        rs1_address_out <= rs1_address_in;
+        rs2_address_out <= rs2_address_in;
+        rd_address_out <= rd_address_in;
         funct3_out <= funct3_in;
         alu_op_out <= alu_op_in;
         ALUSrcA_out <= ALUSrcA_in;

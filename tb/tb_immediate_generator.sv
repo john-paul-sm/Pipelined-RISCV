@@ -3,7 +3,7 @@
 module tb_immediate_generator;
 
 logic [31:0] instruction, immediate;
-logic [31:0] expected_imm;
+logic [31:0] expected_immediate;
 logic [6:0] opcodes [0:9];
 
 localparam RANDOM_TESTS = 100000;
@@ -68,27 +68,27 @@ initial begin
     check(immediate, 32'hFFFF_FFFC, "JALR decodes as I-type");
 
     // Test 4: S-type, positive offset
-    // sw x7, 20(x6)      imm[11:5]=0000000  imm[4:0]=10100
+    // sw x7, 20(x6)      immediate[11:5]=0000000  immediate[4:0]=10100
     instruction = 32'b0000000_00111_00110_010_10100_0100011;
     #1;
     check(immediate, 32'h0000_0014, "S-type positive offset");
 
     // Test 5: S-type, negative offset
-    // sw x7, -4(x6)      imm[11:5]=1111111  imm[4:0]=11100
+    // sw x7, -4(x6)      immediate[11:5]=1111111  immediate[4:0]=11100
     instruction = 32'b1111111_00111_00110_010_11100_0100011;
     #1;
     check(immediate, 32'hFFFF_FFFC, "S-type negative offset");
 
     // Test 6: B-type, positive offset
     // beq x5, x6, 16
-    // imm[12]=0 imm[10:5]=000000 imm[4:1]=1000 imm[11]=0
+    // immediate[12]=0 immediate[10:5]=000000 immediate[4:1]=1000 immediate[11]=0
     instruction = 32'b0_000000_00110_00101_000_1000_0_1100011;
     #1;
     check(immediate, 32'h0000_0010, "B-type positive offset");
 
     // Test 7: B-type, negative offset
     // beq x5, x6, -8
-    // imm[12]=1 imm[10:5]=111111 imm[4:1]=1100 imm[11]=1
+    // immediate[12]=1 immediate[10:5]=111111 immediate[4:1]=1100 immediate[11]=1
     instruction = 32'b1_111111_00110_00101_000_1100_1_1100011;
     #1;
     check(immediate, 32'hFFFF_FFF8, "B-type negative offset");
@@ -107,14 +107,14 @@ initial begin
 
     // Test 10: J-type, negative offset
     // jal x1, -16
-    // imm[20]=1 imm[10:1]=1111111000 imm[11]=1 imm[19:12]=11111111
+    // immediate[20]=1 immediate[10:1]=1111111000 immediate[11]=1 immediate[19:12]=11111111
     instruction = 32'b1_1111111000_1_11111111_00001_1101111;
     #1;
     check(immediate, 32'hFFFF_FFF0, "J-type negative offset");
 
     // Test 11: J-type, positive offset with only bit 11 set
     // jal x1, 2048
-    // imm[20]=0 imm[10:1]=0000000000 imm[11]=1 imm[19:12]=00000000
+    // immediate[20]=0 immediate[10:1]=0000000000 immediate[11]=1 immediate[19:12]=00000000
     instruction = 32'b0_0000000000_1_00000000_00001_1101111;
     #1;
     check(immediate, 32'h0000_0800, "J-type bit 11 comes from instruction[20]");
@@ -128,14 +128,14 @@ initial begin
     // Test 13: random instructions vs. a reference model
     // 9 of 10 use an opcode with an immediate (all other bits random), 1 of 10 is fully random
     opcodes = '{7'b0010011, 7'b0000011, 7'b1100111, 7'b0100011, 7'b1100011, 7'b0110111, 7'b0010111, 7'b1101111, 7'b0110011, 7'b1110011};
-    for (int t = 0; t < RANDOM_TESTS; t++) begin
+    for (int test = 0; test < RANDOM_TESTS; test++) begin
         instruction = $urandom;
         if ($urandom_range(0, 9) != 0) instruction[6:0] = opcodes[$urandom_range(0, 9)];
         #1;
-        expected_imm = reference(instruction);
-        if (immediate !== expected_imm) begin
+        expected_immediate = reference(instruction);
+        if (immediate !== expected_immediate) begin
             mismatches++;
-            if (mismatches <= 5) $display("Mismatch: instruction=%h immediate=%h expected %h", instruction, immediate, expected_imm);
+            if (mismatches <= 5) $display("Mismatch: instruction=%h immediate=%h expected %h", instruction, immediate, expected_immediate);
         end
     end
     check(mismatches, 32'd0, "100000 random instructions match the reference model");

@@ -40,14 +40,14 @@ end
 endtask
 
 function automatic logic reference(
-    input logic br,
-    input logic jmp,
-    input logic [2:0] f3,
+    input logic branch_in,
+    input logic jump_in,
+    input logic [2:0] funct3_in,
     input logic [31:0] a,
     input logic [31:0] b
 );
     logic taken;
-    case (f3)
+    case (funct3_in)
         3'b000: taken = (a == b);
         3'b001: taken = (a != b);
         3'b100: taken = ($signed(a) < $signed(b));
@@ -56,21 +56,21 @@ function automatic logic reference(
         3'b111: taken = (a >= b);
         default: taken = 1'b0;
     endcase
-    return jmp || (br && taken);
+    return jump_in || (branch_in && taken);
 endfunction
 
 task run(
-    input logic br,
-    input logic jmp,
-    input logic [2:0] f3,
+    input logic branch_in,
+    input logic jump_in,
+    input logic [2:0] funct3_in,
     input logic [31:0] a,
     input logic [31:0] b,
     input logic expected,
     input string label
 );
-    Branch = br;
-    Jump = jmp;
-    funct3 = f3;
+    Branch = branch_in;
+    Jump = jump_in;
+    funct3 = funct3_in;
     operand_a = a;
     operand_b = b;
     #1;

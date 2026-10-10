@@ -6,8 +6,8 @@ localparam logic [31:0] TOHOST = 32'h0000_07FC;
 
 logic clk, reset;
 
-string prog;
-longint cycles, retired, stalls, md_stalls, redirects;
+string program_file;
+longint cycles, retired, stalls, mul_div_stalls, redirects;
 logic done;
 logic [31:0] tohost_value;
 
@@ -26,9 +26,9 @@ initial begin
 end
 
 initial begin
-    if (!$value$plusargs("prog=%s", prog)) prog = "sim/isa_rv32i.hex";
+    if (!$value$plusargs("prog=%s", program_file)) program_file = "sim/isa_rv32i.hex";
     #1;
-    $readmemh(prog, dut.u_imem.memory);
+    $readmemh(program_file, dut.u_instruction_memory.memory);
 end
 
 always @(posedge clk) begin
@@ -36,7 +36,7 @@ always @(posedge clk) begin
         cycles <= 0;
         retired <= 0;
         stalls <= 0;
-        md_stalls <= 0;
+        mul_div_stalls <= 0;
         redirects <= 0;
         done <= 0;
         tohost_value <= 0;
@@ -44,12 +44,12 @@ always @(posedge clk) begin
     else if (!done) begin
         cycles <= cycles + 1;
         if (dut.u_core.wb_valid) retired <= retired + 1;
-        if (dut.u_core.hz_stall) stalls <= stalls + 1;
-        if (dut.u_core.md_busy) md_stalls <= md_stalls + 1;
+        if (dut.u_core.load_use_stall) stalls <= stalls + 1;
+        if (dut.u_core.mul_div_busy) mul_div_stalls <= mul_div_stalls + 1;
         if (dut.u_core.ex_redirect) redirects <= redirects + 1;
-        if (dut.u_core.dmem_MemWrite && dut.u_core.dmem_addr == TOHOST) begin
+        if (dut.u_core.dmem_MemWrite && dut.u_core.dmem_address == TOHOST) begin
             done <= 1;
-            tohost_value <= dut.u_core.dmem_wdata;
+            tohost_value <= dut.u_core.dmem_write_data;
         end
     end
 end
@@ -78,14 +78,14 @@ initial begin
     while (!done && cycles < MAX_CYCLES) @(posedge clk);
     #1;
 
-    $display("Program: %s", prog);
+    $display("Program: %s", program_file);
     check({31'b0, done}, 32'd1, "program reached tohost");
     check(tohost_value, 32'd1, "tohost = 1 (all self-checks passed)");
     $display("cycles    = %0d", cycles);
     $display("retired   = %0d", retired);
     $display("IPC       = %0.3f", real'(retired) / real'(cycles));
     $display("stalls    = %0d", stalls);
-    $display("md_stalls = %0d", md_stalls);
+    $display("md_stalls = %0d", mul_div_stalls);
     $display("redirects = %0d", redirects);
 
     $display("=== %0d errors ===", errors);

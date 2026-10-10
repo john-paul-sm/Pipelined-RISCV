@@ -1,7 +1,7 @@
 module tb_forwarding_unit;
 
-logic [4:0] id_ex_rs1_addr, id_ex_rs2_addr;
-logic [4:0] ex_mem_rd_addr, mem_wb_rd_addr;
+logic [4:0] id_ex_rs1_address, id_ex_rs2_address;
+logic [4:0] ex_mem_rd_address, mem_wb_rd_address;
 logic ex_mem_RegWrite, mem_wb_RegWrite;
 logic [1:0] forward_a, forward_b;
 logic [1:0] expected_a, expected_b;
@@ -11,11 +11,11 @@ int mismatches = 0;
 int combinations = 0;
 
 forwarding_unit dut (
-    .id_ex_rs1_addr(id_ex_rs1_addr),
-    .id_ex_rs2_addr(id_ex_rs2_addr),
-    .ex_mem_rd_addr(ex_mem_rd_addr),
+    .id_ex_rs1_address(id_ex_rs1_address),
+    .id_ex_rs2_address(id_ex_rs2_address),
+    .ex_mem_rd_address(ex_mem_rd_address),
     .ex_mem_RegWrite(ex_mem_RegWrite),
-    .mem_wb_rd_addr(mem_wb_rd_addr),
+    .mem_wb_rd_address(mem_wb_rd_address),
     .mem_wb_RegWrite(mem_wb_RegWrite),
     .forward_a(forward_a),
     .forward_b(forward_b)
@@ -59,69 +59,69 @@ initial begin
 
     // Test 1: rs1 written by the instruction in MEM
     // add x5, ... (MEM) ; add x7, x5, x6 (EX)
-    id_ex_rs1_addr = 5'd5;
-    id_ex_rs2_addr = 5'd6;
+    id_ex_rs1_address = 5'd5;
+    id_ex_rs2_address = 5'd6;
     ex_mem_RegWrite = 1;
-    ex_mem_rd_addr = 5'd5;
+    ex_mem_rd_address = 5'd5;
     mem_wb_RegWrite = 0;
-    mem_wb_rd_addr = 5'd0;
+    mem_wb_rd_address = 5'd0;
     #1;
     check({30'b0, forward_a}, 32'b10, "rs1 = EX/MEM rd: forward from MEM");
 
     // Test 2: rs2 written by the instruction in WB
     // add x6, ... (WB) ; add x7, x5, x6 (EX)
     ex_mem_RegWrite = 0;
-    ex_mem_rd_addr = 5'd0;
+    ex_mem_rd_address = 5'd0;
     mem_wb_RegWrite = 1;
-    mem_wb_rd_addr = 5'd6;
+    mem_wb_rd_address = 5'd6;
     #1;
     check({30'b0, forward_b}, 32'b01, "rs2 = MEM/WB rd: forward from WB");
 
     // Test 3: MEM and WB both write rs: the newer value (MEM) wins
     // add x5 (WB) ; add x5 (MEM) ; add x7, x5, x5 (EX)
-    id_ex_rs1_addr = 5'd5;
-    id_ex_rs2_addr = 5'd5;
+    id_ex_rs1_address = 5'd5;
+    id_ex_rs2_address = 5'd5;
     ex_mem_RegWrite = 1;
-    ex_mem_rd_addr = 5'd5;
+    ex_mem_rd_address = 5'd5;
     mem_wb_RegWrite = 1;
-    mem_wb_rd_addr = 5'd5;
+    mem_wb_rd_address = 5'd5;
     #1;
     check({28'b0, forward_a, forward_b}, 32'b1010, "both stages write rs: MEM has priority");
 
     // Test 4: writes to x0 are never forwarded
-    id_ex_rs1_addr = 5'd0;
-    id_ex_rs2_addr = 5'd0;
-    ex_mem_rd_addr = 5'd0;
-    mem_wb_rd_addr = 5'd0;
+    id_ex_rs1_address = 5'd0;
+    id_ex_rs2_address = 5'd0;
+    ex_mem_rd_address = 5'd0;
+    mem_wb_rd_address = 5'd0;
     #1;
     check({28'b0, forward_a, forward_b}, 32'b0000, "writes to x0 are never forwarded");
 
     // Test 5: RegWrite = 0 (store or branch in MEM/WB): no forward
-    id_ex_rs1_addr = 5'd5;
-    id_ex_rs2_addr = 5'd5;
+    id_ex_rs1_address = 5'd5;
+    id_ex_rs2_address = 5'd5;
     ex_mem_RegWrite = 0;
-    ex_mem_rd_addr = 5'd5;
+    ex_mem_rd_address = 5'd5;
     mem_wb_RegWrite = 0;
-    mem_wb_rd_addr = 5'd5;
+    mem_wb_rd_address = 5'd5;
     #1;
     check({28'b0, forward_a, forward_b}, 32'b0000, "RegWrite = 0: no forward");
 
     // Test 6: every input combination (exhaustive, 2^22 = 4194304)
     // i[21:17] = rs1, i[16:12] = rs2, i[11] / i[10:6] = EX/MEM RegWrite / rd, i[5] / i[4:0] = MEM/WB RegWrite / rd
     for (int i = 0; i < 4194304; i++) begin
-        id_ex_rs1_addr = i[21:17];
-        id_ex_rs2_addr = i[16:12];
+        id_ex_rs1_address = i[21:17];
+        id_ex_rs2_address = i[16:12];
         ex_mem_RegWrite = i[11];
-        ex_mem_rd_addr = i[10:6];
+        ex_mem_rd_address = i[10:6];
         mem_wb_RegWrite = i[5];
-        mem_wb_rd_addr = i[4:0];
+        mem_wb_rd_address = i[4:0];
         #1;
-        expected_a = reference(id_ex_rs1_addr, ex_mem_RegWrite, ex_mem_rd_addr, mem_wb_RegWrite, mem_wb_rd_addr);
-        expected_b = reference(id_ex_rs2_addr, ex_mem_RegWrite, ex_mem_rd_addr, mem_wb_RegWrite, mem_wb_rd_addr);
+        expected_a = reference(id_ex_rs1_address, ex_mem_RegWrite, ex_mem_rd_address, mem_wb_RegWrite, mem_wb_rd_address);
+        expected_b = reference(id_ex_rs2_address, ex_mem_RegWrite, ex_mem_rd_address, mem_wb_RegWrite, mem_wb_rd_address);
         combinations++;
         if ((forward_a !== expected_a) || (forward_b !== expected_b)) begin
             mismatches++;
-            if (mismatches <= 5) $display("Mismatch: rs1=%0d rs2=%0d ex_mem=%b/%0d mem_wb=%b/%0d forward=%b/%b expected=%b/%b", id_ex_rs1_addr, id_ex_rs2_addr, ex_mem_RegWrite, ex_mem_rd_addr, mem_wb_RegWrite, mem_wb_rd_addr, forward_a, forward_b, expected_a, expected_b);
+            if (mismatches <= 5) $display("Mismatch: rs1=%0d rs2=%0d ex_mem=%b/%0d mem_wb=%b/%0d forward=%b/%b expected=%b/%b", id_ex_rs1_address, id_ex_rs2_address, ex_mem_RegWrite, ex_mem_rd_address, mem_wb_RegWrite, mem_wb_rd_address, forward_a, forward_b, expected_a, expected_b);
         end
     end
     check(combinations, 32'd4194304, "every input combination applied");
