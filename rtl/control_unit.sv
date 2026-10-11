@@ -10,6 +10,8 @@ module control_unit import riscv_ref::*; (
     output logic Jump,       // 1 = JAL or JALR (always taken)
     output logic Jalr,       // 1 = jump target is rs1+immediate (from ALU), not PC+immediate
     output logic MulDiv,     // 1 = M extension instruction: mul_div_unit result, not ALU result
+    output logic rs1_used,   // 1 = instruction[19:15] is rs1 (hazard_detection_unit compares it)
+    output logic rs2_used,   // 1 = instruction[24:20] is rs2 (hazard_detection_unit compares it)
     output logic [3:0] alu_op
 );
 
@@ -42,11 +44,15 @@ always_comb begin
     Jump = 1'b0;
     Jalr = 1'b0;
     MulDiv = 1'b0;
+    rs1_used = 1'b0;
+    rs2_used = 1'b0;
     alu_op = ALU_ADD;
  
     case (opcode)
         OP_R_TYPE: begin            // add, sub, sll, slt, ... : rd = rs1 op rs2
             RegWrite = 1'b1;
+            rs1_used = 1'b1;
+            rs2_used = 1'b1;
             MulDiv = (funct7 == F7_MULDIV); // mul, div, rem, ... : alu_op below is unused
 
             case (funct3)
@@ -64,6 +70,7 @@ always_comb begin
  
         OP_I_TYPE: begin            // addi, slti, srai, ... : rd = rs1 op immediate
             RegWrite = 1'b1;
+            rs1_used = 1'b1;
             ALUSrcB = 1'b1;
 
             case (funct3)
@@ -82,17 +89,22 @@ always_comb begin
         OP_LOAD: begin              // lw, lh, lb, ... : rd = mem[rs1 + immediate]
             RegWrite = 1'b1;
             MemRead = 1'b1;
+            rs1_used = 1'b1;
             MemToReg = RESULT_MEMORY;
             ALUSrcB = 1'b1;       // ALU computes the address rs1 + immediate
         end
  
         OP_STORE: begin             // sw, sh, sb : mem[rs1 + immediate] = rs2
             MemWrite = 1'b1;
+            rs1_used = 1'b1;
+            rs2_used = 1'b1;
             ALUSrcB = 1'b1;        // ALU computes the address rs1 + immediate
         end
  
          OP_BRANCH: begin            // beq, bne, ... : comparison done in branch_flush_unit
             Branch = 1'b1;
+            rs1_used = 1'b1;
+            rs2_used = 1'b1;
         end
  
         OP_JAL: begin               // rd = PC+4 ; PC = PC + immediate (branch-target adder)
@@ -107,6 +119,7 @@ always_comb begin
             ALUSrcB = 1'b1;
             Jump = 1'b1;
             Jalr = 1'b1;
+            rs1_used = 1'b1;
         end
  
         OP_AUIPC: begin             // rd = PC + immediate

@@ -59,6 +59,8 @@ logic id_Branch;
 logic id_Jump;
 logic id_Jalr;
 logic id_MulDiv;
+logic id_rs1_used;
+logic id_rs2_used;
 logic [3:0] id_alu_op;
 
 // EX (id_ex_register outputs, then values made in EX)
@@ -167,6 +169,8 @@ control_unit u_control_unit (
     .Jump(id_Jump),
     .Jalr(id_Jalr),
     .MulDiv(id_MulDiv),
+    .rs1_used(id_rs1_used),
+    .rs2_used(id_rs2_used),
     .alu_op(id_alu_op)
 );
 
@@ -193,6 +197,8 @@ hazard_detection_unit u_hazard_detection_unit (
     .id_ex_rd_address(ex_rd_address),
     .if_id_rs1_address(id_rs1_address),
     .if_id_rs2_address(id_rs2_address),
+    .if_id_rs1_used(id_rs1_used),
+    .if_id_rs2_used(id_rs2_used),
     .stall(load_use_stall)
 );
 

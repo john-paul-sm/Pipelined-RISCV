@@ -8,6 +8,7 @@ logic [31:0] instruction;
 logic RegWrite, MemRead, MemWrite;
 logic [1:0] MemToReg, ALUSrcA;
 logic ALUSrcB, Branch, Jump, Jalr, MulDiv;
+logic rs1_used, rs2_used;
 logic [3:0] alu_op;
 
 int errors = 0;
@@ -25,6 +26,8 @@ control_unit dut (
     .Jump(Jump),
     .Jalr(Jalr),
     .MulDiv(MulDiv),
+    .rs1_used(rs1_used),
+    .rs2_used(rs2_used),
     .alu_op(alu_op)
 );
 
@@ -94,6 +97,26 @@ task run(
     check(mismatches, 32'd0, label);
 endtask
 
+task run_operands(
+    input logic [6:0] opcode,
+    input logic expected_rs1_used,
+    input logic expected_rs2_used,
+    input string label
+);
+    int mismatches;
+    mismatches = 0;
+    for (int i = 0; i < VARIANTS; i++) begin
+        instruction = $urandom;
+        instruction[6:0] = opcode;
+        #1;
+        if ({rs1_used, rs2_used} !== {expected_rs1_used, expected_rs2_used}) begin
+            mismatches++;
+            if (mismatches == 1) $display("Mismatch: %s instruction=%h rs1_used=%b rs2_used=%b expected=%b%b", label, instruction, rs1_used, rs2_used, expected_rs1_used, expected_rs2_used);
+        end
+    end
+    check(mismatches, 32'd0, label);
+endtask
+
 initial begin
 
     // Test 1: R-type: add, sub, sll, slt, sltu, xor, srl, sra, or, and
@@ -155,6 +178,20 @@ initial begin
     run(7'b0000000, 3'b000, 7'b1110011, 1'b0, 1'b1, control_word(0, 0, 0, 2'b00, 2'b00, 0, 0, 0, 0, 0, ALU_ADD), "ecall/ebreak: no-op");
     run(7'b0000000, 3'b000, 7'b0000000, 1'b0, 1'b1, control_word(0, 0, 0, 2'b00, 2'b00, 0, 0, 0, 0, 0, ALU_ADD), "opcode 0000000: no-op");
     run(7'b0000000, 3'b000, 7'b1111111, 1'b0, 1'b1, control_word(0, 0, 0, 2'b00, 2'b00, 0, 0, 0, 0, 0, ALU_ADD), "opcode 1111111: no-op");
+
+    // Test 9: rs1_used / rs2_used: 1 only for a field the format really reads
+    run_operands(7'b0110011, 1'b1, 1'b1, "R-type (incl. M): reads rs1, rs2");
+    run_operands(7'b0010011, 1'b1, 1'b0, "I-type ALU: reads rs1 only");
+    run_operands(7'b0000011, 1'b1, 1'b0, "load: reads rs1 only");
+    run_operands(7'b0100011, 1'b1, 1'b1, "store: reads rs1, rs2");
+    run_operands(7'b1100011, 1'b1, 1'b1, "branch: reads rs1, rs2");
+    run_operands(7'b1100111, 1'b1, 1'b0, "jalr: reads rs1 only");
+    run_operands(7'b1101111, 1'b0, 1'b0, "jal: reads no register");
+    run_operands(7'b0010111, 1'b0, 1'b0, "auipc: reads no register");
+    run_operands(7'b0110111, 1'b0, 1'b0, "lui: reads no register");
+    run_operands(7'b0001111, 1'b0, 1'b0, "fence: reads no register");
+    run_operands(7'b1110011, 1'b0, 1'b0, "ecall/ebreak: reads no register");
+    run_operands(7'b0000000, 1'b0, 1'b0, "opcode 0000000: reads no register");
 
     $display("=== %0d passed, %0d errors ===", passed, errors);
     $finish;
