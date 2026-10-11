@@ -11,6 +11,7 @@ logic [31:0] expected_pc;
 localparam RANDOM_CYCLES = 10000;
 
 int errors = 0;
+int passed = 0;
 int mismatches = 0;
 
 program_counter dut (
@@ -42,6 +43,7 @@ if (observed !== expected) begin
     errors++;
 end
 else begin
+    passed++;
     $display("Passed: %s", label);
 end
 endtask
@@ -109,7 +111,7 @@ initial begin
     stall = 0;
     check(mismatches, 32'd0, "10000 random cycles match the reference model");
 
-    $display ("=== %d errors ===", errors);
+    $display ("=== %0d passed, %0d errors ===", passed, errors);
     $finish;
 end
 

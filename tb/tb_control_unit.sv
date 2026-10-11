@@ -11,6 +11,7 @@ logic ALUSrcB, Branch, Jump, Jalr, MulDiv;
 logic [3:0] alu_op;
 
 int errors = 0;
+int passed = 0;
 
 control_unit dut (
     .instruction(instruction),
@@ -43,6 +44,7 @@ if (observed !== expected) begin
     errors++;
 end
 else begin
+    passed++;
     $display("Passed: %s", label);
 end
 endtask
@@ -154,7 +156,7 @@ initial begin
     run(7'b0000000, 3'b000, 7'b0000000, 1'b0, 1'b1, control_word(0, 0, 0, 2'b00, 2'b00, 0, 0, 0, 0, 0, ALU_ADD), "opcode 0000000: no-op");
     run(7'b0000000, 3'b000, 7'b1111111, 1'b0, 1'b1, control_word(0, 0, 0, 2'b00, 2'b00, 0, 0, 0, 0, 0, ALU_ADD), "opcode 1111111: no-op");
 
-    $display("=== %0d errors ===", errors);
+    $display("=== %0d passed, %0d errors ===", passed, errors);
     $finish;
 end
 

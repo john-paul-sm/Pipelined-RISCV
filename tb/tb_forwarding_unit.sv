@@ -7,6 +7,7 @@ logic [1:0] forward_a, forward_b;
 logic [1:0] expected_a, expected_b;
 
 int errors = 0;
+int passed = 0;
 int mismatches = 0;
 int combinations = 0;
 
@@ -39,6 +40,7 @@ if (observed !== expected) begin
     errors++;
 end
 else begin
+    passed++;
     $display("Passed: %s", label);
 end
 endtask
@@ -127,7 +129,7 @@ initial begin
     check(combinations, 32'd4194304, "every input combination applied");
     check(mismatches, 32'd0, "forward_a and forward_b match the forwarding rule for all 4194304 inputs");
 
-    $display("=== %0d errors ===", errors);
+    $display("=== %0d passed, %0d errors ===", passed, errors);
     $finish;
 end
 

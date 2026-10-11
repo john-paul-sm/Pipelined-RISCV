@@ -11,6 +11,7 @@ logic busy;
 logic [31:0] result;
 
 int errors = 0;
+int passed = 0;
 int cycles_in_ex;
 
 mul_div_unit dut (
@@ -69,6 +70,9 @@ task check(
 if (observed !== expected) begin
     $error("%s: expected %h, got %h", label, expected, observed);
     errors++;
+end
+else begin
+    passed++;
 end
 endtask
 
@@ -135,7 +139,7 @@ initial begin
     #1;
     check({31'b0, busy}, 32'd0, "busy = 0 when start = 0");
 
-    $display("=== %0d errors ===", errors);
+    $display("=== %0d passed, %0d errors ===", passed, errors);
     $finish;
 end
 

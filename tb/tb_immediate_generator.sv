@@ -9,6 +9,7 @@ logic [6:0] opcodes [0:9];
 localparam RANDOM_TESTS = 100000;
 
 int errors = 0;
+int passed = 0;
 int mismatches = 0;
 
 immediate_generator dut (
@@ -32,6 +33,7 @@ if (observed !== expected) begin
     errors++;
 end
 else begin
+    passed++;
     $display("Passed: %s", label);
 end
 endtask
@@ -140,7 +142,7 @@ initial begin
     end
     check(mismatches, 32'd0, "100000 random instructions match the reference model");
 
-    $display("=== %0d errors ===", errors);
+    $display("=== %0d passed, %0d errors ===", passed, errors);
     $finish;
 end
 

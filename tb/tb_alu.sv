@@ -8,6 +8,7 @@ logic [31:0] operand_a, operand_b, result;
 logic [3:0] alu_op;
 
 int errors = 0;
+int passed = 0;
 int mismatches = 0;
 
 alu dut (
@@ -33,6 +34,7 @@ if (observed !== expected) begin
     errors++;
 end
 else begin
+    passed++;
     $display("Passed: %s", label);
 end
 endtask
@@ -117,7 +119,7 @@ initial begin
     end
     check(mismatches, 32'd0, "result matches the reference for 100000 random inputs");
 
-    $display("=== %0d errors ===", errors);
+    $display("=== %0d passed, %0d errors ===", passed, errors);
     $finish;
 end
 

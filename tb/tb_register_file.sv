@@ -13,6 +13,7 @@ logic [31:0] expected1, expected2;
 localparam RANDOM_CYCLES = 20000;
 
 int errors = 0;
+int passed = 0;
 int mismatches = 0;
 
 register_file dut (
@@ -48,6 +49,7 @@ if (observed !== expected) begin
     errors++;
 end
 else begin
+    passed++;
     $display("Passed: %s", label);
 end
 endtask
@@ -178,7 +180,7 @@ initial begin
     RegWrite = 0;
     check(mismatches, 32'd0, "20000 random cycles match the reference model");
 
-    $display("=== %0d errors ===", errors);
+    $display("=== %0d passed, %0d errors ===", passed, errors);
     $finish;
 end
 

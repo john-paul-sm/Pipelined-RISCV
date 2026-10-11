@@ -12,6 +12,7 @@ logic done;
 logic [31:0] tohost_value;
 
 int errors = 0;
+int passed = 0;
 
 riscv_top #(
     .IMEM_FILE("sim/isa_rv32i.hex")
@@ -65,6 +66,7 @@ if (observed !== expected) begin
     errors++;
 end
 else begin
+    passed++;
     $display("Passed: %s", label);
 end
 endtask
@@ -88,7 +90,7 @@ initial begin
     $display("md_stalls = %0d", mul_div_stalls);
     $display("redirects = %0d", redirects);
 
-    $display("=== %0d errors ===", errors);
+    $display("=== %0d passed, %0d errors ===", passed, errors);
     $finish;
 end
 

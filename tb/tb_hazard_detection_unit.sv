@@ -5,6 +5,7 @@ logic [4:0] id_ex_rd_address, if_id_rs1_address, if_id_rs2_address;
 logic stall, expected_stall;
 
 int errors = 0;
+int passed = 0;
 int mismatches = 0;
 int combinations = 0;
 
@@ -32,6 +33,7 @@ if (observed !== expected) begin
     errors++;
 end
 else begin
+    passed++;
     $display("Passed: %s", label);
 end
 endtask
@@ -96,7 +98,7 @@ initial begin
     check(combinations, 32'd65536, "every input combination applied");
     check(mismatches, 32'd0, "stall matches the load-use rule for all 65536 inputs");
 
-    $display("=== %0d errors ===", errors);
+    $display("=== %0d passed, %0d errors ===", passed, errors);
     $finish;
 end
 

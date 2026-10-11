@@ -4,14 +4,21 @@
 
 ## Summary
 
-| Metric | RV32I | RV32IM (current) |
+| Metric | RV32I (old SDC) | RV32IM (current) |
 |---|---|---|
-| Setup slack at 10 ns | +1.209 ns (met) | −0.393 ns |
-| Achieved Fmax | **113.75 MHz** (8.79 ns) | **96.22 MHz** (10.39 ns) |
-| Hold slack | +0.414 ns (met) | +0.390 ns (met) |
+| Setup slack | +1.209 ns at 10 ns (met) | +0.007 ns at 10.65 ns (met) |
+| Achieved Fmax | **113.75 MHz** (8.79 ns) | **93.96 MHz** (10.64 ns) |
+| Hold slack | +0.414 ns (met) | +0.140 ns (met) |
 | Cell area | 0.0769 mm² (76,852 µm²) | **0.0879 mm²** (87,901 µm²) |
-| Power (estimate) | 8.43 mW at 100 MHz | **9.21 mW** at 100 MHz |
-| IPC (RV32I programs) | 0.67–0.90 | 0.67–0.90 |
+| Power (estimate) | 8.43 mW at 100 MHz | **8.67 mW** at 93.9 MHz |
+| FPGA (PYNQ-Z2, Zynq-7020) | — | **90 MHz** (timing met, programs pass on the board) |
+| IPC (RV32I programs) | 0.67–0.75 | 0.67–0.75 |
+
+Current SDC (`synth/riscv_core.sdc`): 10.65 ns clock, 0.25 ns clock uncertainty, 2.0 ns
+input/output delay, `buf_2` input drive, 0.030 pF output load, max transition 1.5 ns,
+max fanout 20. Design-rule check: 0 max-transition and 0 max-capacitance violations;
+32 max-fanout violations (fanout 32), all register-file write enables. **Old SDC**:
+10.0–10.4 ns clock, no clock uncertainty, 0.0175 pF load, no design-rule limits.
 
 ## M extension: iterative vs. single-cycle
 
@@ -19,6 +26,8 @@ One shared radix-2 unit (`mul_div_unit`) executes all 8 RV32M instructions: shif
 multiply, restoring division, one 33-bit adder, 32 iterations. Every M instruction stays in
 EX for 37 cycles and stalls the front of the pipeline. The alternative puts a combinational
 multiplier and divider in the ALU (1 cycle).
+
+Measured with the old SDC.
 
 | Metric | RV32I | RV32IM, iterative unit | RV32IM, single-cycle ALU |
 |---|---|---|---|
@@ -42,17 +51,28 @@ Execution time = cycles × clock period:
 - RV32IM critical path: the unit's 33-bit ripple-carry adder (divide step: adder carry-out
   selects the restore mux), 10.26 ns. A parallel-prefix adder is the known fix.
 
-## Timing: fixing high-fanout nets (RV32I)
+## Timing: fixing high-fanout nets
 
-| Synthesis | Setup slack at 10 ns | Achieved Fmax | Area |
+Same RTL and SDC; the only difference is whether ABC gets the drive/load constraints and
+a delay target (`-constr synth/abc.constr -D 10000`).
+
+| Synthesis | Achieved Fmax | Area | Max-transition violations |
 |---|---|---|---|
-| Unbuffered | −6.674 ns (violated) | 59.98 MHz | 74,413 µm² |
-| Buffered (ABC `-D` + `-constr`) | **+1.209 ns (met)** | **113.75 MHz** | 76,852 µm² |
+| RV32I, unbuffered (old SDC) | 59.98 MHz | 74,413 µm² | — |
+| RV32I, buffered (old SDC) | **113.75 MHz** | 76,852 µm² | — |
+| RV32IM, unbuffered (`synth/synth_core_unbuffered.ys`) | 53.55 MHz | 84,667 µm² | 4,634 |
+| RV32IM, buffered | **93.96 MHz** | 87,901 µm² | 0 |
 
-- Unbuffered: ~90% of the critical-path delay came from two weak cells driving
+- RV32IM unbuffered: 15.9 ns of the 18.27 ns critical path is three high-fanout nets.
+  The worst is the flip-flop `u_if_id.instruction_out[20]` (rs2 bit 0) driving 292
+  inputs (1.53 pF, 14.1 ns slew). Slews this large are outside the cell library's
+  characterized range, so the unbuffered Fmax is not a valid timing result.
+- RV32I unbuffered: ~90% of the critical-path delay came from two weak cells driving
   high-fanout nets, not from logic depth.
-- Buffering and cell resizing: **1.90× Fmax for +3.3% area**.
-- New critical path: MEM/WB rd → forwarding compare → forwarding mux → ALU carry chain.
+- Buffering and cell resizing: **1.90× Fmax for +3.3% area** (RV32I), **1.75× for +3.8%**
+  (RV32IM).
+- RV32I critical path after buffering: MEM/WB rd → forwarding compare → forwarding mux →
+  ALU carry chain. RV32IM: the `mul_div_unit` 33-bit adder.
 
 ## Area (RV32I)
 
@@ -97,7 +117,6 @@ Predict-not-taken, 2-cycle branch penalty, 1-cycle load-use stall.
 
 | Program | Stresses | Cycles | IPC |
 |---|---|---|---|
-| `isa_rv32i` | All RV32I instructions | 262 | 0.901 |
 | `crc32` | Data-dependent branches | 5,194 | 0.670 |
 | `hanoi` | Recursive calls / returns | 10,741 | 0.738 |
 | `fir` | Software multiply (M baseline) | 143,356 | 0.750 |
