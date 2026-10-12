@@ -1,7 +1,7 @@
-module tb_mul_div_unit;
+module tb_multiplier;
 
 localparam CLOCK_PERIOD = 10;
-localparam RANDOM_TESTS = 2000;
+localparam RANDOM_TESTS = 20000;
 
 logic clk, reset;
 logic start;
@@ -14,7 +14,7 @@ int errors = 0;
 int passed = 0;
 int cycles_in_ex;
 
-mul_div_unit dut (
+multiplier dut (
     .clk(clk),
     .reset(reset),
     .start(start),
@@ -45,19 +45,7 @@ function automatic logic [31:0] reference(
         3'b000: return product_unsigned_unsigned[31:0];
         3'b001: return product_signed_signed[63:32];
         3'b010: return product_signed_unsigned[63:32];
-        3'b011: return product_unsigned_unsigned[63:32];
-        3'b100: begin
-            if (b == 0) return 32'hFFFF_FFFF;
-            if (a == 32'h8000_0000 && b == 32'hFFFF_FFFF) return 32'h8000_0000;
-            return $signed(a) / $signed(b);
-        end
-        3'b101: return (b == 0) ? 32'hFFFF_FFFF : a / b;
-        3'b110: begin
-            if (b == 0) return a;
-            if (a == 32'h8000_0000 && b == 32'hFFFF_FFFF) return 32'd0;
-            return $signed(a) % $signed(b);
-        end
-        default: return (b == 0) ? a : a % b;
+        default: return product_unsigned_unsigned[63:32];
     endcase
 endfunction
 
@@ -90,15 +78,16 @@ task run(
     @(posedge clk);
     #1;
     cycles_in_ex++;
-    operand_a = $urandom;
+    operand_a = $urandom; // cycle 2: the operands change (the forwarding source can move)
     operand_b = $urandom;
+    #1; // let the new operands reach the combinational logic before the result is checked
     while (busy) begin
         @(posedge clk);
         #1;
         cycles_in_ex++;
     end
     check(result, reference(f3, a, b), $sformatf("%s f3=%0d a=%h b=%h", label, f3, a, b));
-    check(cycles_in_ex, 37, $sformatf("%s latency", label));
+    check(cycles_in_ex, 2, $sformatf("%s latency", label));
     @(posedge clk);
     #1;
 endtask
@@ -113,15 +102,20 @@ initial begin
     #1;
     reset = 0;
 
-    for (int funct3_value = 0; funct3_value < 8; funct3_value++) begin
+    for (int funct3_value = 0; funct3_value < 4; funct3_value++) begin
         run(funct3_value[2:0], 32'd7, 32'd3, "small");
         run(funct3_value[2:0], 32'hFFFF_FFF9, 32'd3, "neg a");
         run(funct3_value[2:0], 32'd7, 32'hFFFF_FFFD, "neg b");
         run(funct3_value[2:0], 32'hFFFF_FFF9, 32'hFFFF_FFFD, "neg a neg b");
-        run(funct3_value[2:0], 32'd12345, 32'd0, "divide by zero");
-        run(funct3_value[2:0], 32'hFFFF_FFF9, 32'd0, "neg divide by zero");
-        run(funct3_value[2:0], 32'd0, 32'd0, "zero by zero");
-        run(funct3_value[2:0], 32'h8000_0000, 32'hFFFF_FFFF, "overflow");
+        run(funct3_value[2:0], 32'd12345, 32'd0, "times zero");
+        run(funct3_value[2:0], 32'hFFFF_FFF9, 32'd0, "neg times zero");
+        run(funct3_value[2:0], 32'h8000_0000, 32'hFFFF_FFFF, "min times all ones");
+        run(funct3_value[2:0], 32'h0000_FFFF, 32'h0001_0000, "b pieces 0, 0, 1, 0");
+        run(funct3_value[2:0], 32'hFFFF_FFFF, 32'h00FF_FFFF, "b pieces 0..2 all ones");
+        run(funct3_value[2:0], 32'h8000_0001, 32'h80FF_FFFF, "b sign bit and pieces 0..2");
+        run(funct3_value[2:0], 32'h1234_5678, 32'h0000_0100, "b piece 1 only");
+        run(funct3_value[2:0], 32'h8765_4321, 32'h0100_0000, "b piece 3 only");
+        run(funct3_value[2:0], 32'hFFFF_FFFF, 32'hFF00_0000, "b piece 3 all ones");
         run(funct3_value[2:0], 32'h8000_0000, 32'h8000_0000, "min by min");
         run(funct3_value[2:0], 32'hFFFF_FFFF, 32'hFFFF_FFFF, "all ones");
         run(funct3_value[2:0], 32'h7FFF_FFFF, 32'h7FFF_FFFF, "max by max");
@@ -131,7 +125,7 @@ initial begin
     end
 
     for (int i = 0; i < RANDOM_TESTS; i++) begin
-        run(3'($urandom_range(0, 7)), $urandom, $urandom, "random");
+        run(3'($urandom_range(0, 3)), $urandom, $urandom, "random");
     end
 
     start = 0;

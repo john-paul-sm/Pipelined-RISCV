@@ -16,5 +16,9 @@ fail. Then it loops forever (`jal x0, .`).
 | `fir_m.hex` | `fir.hex` with each call to the software multiply replaced by one `mul` instruction. Same data and same result. Measures the M extension against `fir.hex`. | mem[0x100] = Σ y = `0xFFFFFC70` |
 | `matmul.hex` | 8×8 signed matrix multiply `C = A × B` with the `mul` instruction (RV32IM): 512 multiply-accumulates. A and B come from an LCG (`x = x × 1103515245 + 12345`, seed 1, value = `((x >> 16) & 31) − 16`). Then a checksum `c = rotl(c, 1) ^ C[i][j]` over C, row-major. Each `mul` result goes directly into a dependent `add`. | mem[0x100] = `0xD5B51F45` |
 | `matmul_sw.hex` | `matmul.hex` for RV32I: each `mul` is replaced by a call to the shift-and-add multiply routine from `fir.hex`. Same data and same result. Baseline for `matmul.hex`. | mem[0x100] = `0xD5B51F45` |
+| `gcd.hex` | Euclid's GCD of 32 pairs of unsigned 32-bit numbers: `while (b != 0) { t = a % b; a = b; b = t; }`. Data from xorshift32 (seed `0x12345678`). RV32I has no divide instruction, so it uses a restoring shift-and-subtract divide routine. Baseline for `gcd_m.hex`. | mem[0x100] = `0x3BE5B733`, mem[0x104] = 599 |
+| `gcd_m.hex` | `gcd.hex` with each call to the software divide replaced by one `remu` instruction. Same data and same result. | mem[0x100] = `0x3BE5B733`, mem[0x104] = 599 |
+| `radix.hex` | Converts 64 unsigned numbers to digits in a base from 2 to 33 taken from the data: `digit = n % base; n = n / base` until `n = 0`. Data from xorshift32 (seed `0x87654321`). Checksum `c = rotl(c, 1) ^ digit` over all digits. Software divide routine, baseline for `radix_m.hex`. | mem[0x100] = `0x237B1E5C`, mem[0x104] = 639 |
+| `radix_m.hex` | `radix.hex` with the software divide replaced by `remu` and `divu`. Same data and same result. | mem[0x100] = `0x237B1E5C`, mem[0x104] = 639 |
 
 `asm/common.inc` holds the pass/fail macros shared by all programs.
