@@ -9,11 +9,23 @@ Runs at 90 MHz on a PYNQ-Z2 FPGA board and closes at 93.96 MHz in SKY130 synthes
 - RV32I integer instructions: arithmetic, logic, shifts, compares, loads and stores
   (byte, halfword, word), branches, `jal`/`jalr`, `lui`, `auipc`.
 - RV32M (multiply/divide): one shared iterative radix-2 unit (`mul_div_unit`). Every M
-  instruction stays in EX for 37 cycles.
+  instruction stays in EX for 37 cycles (32 bits).
 - Full forwarding from EX/MEM and MEM/WB, and a write-first register file.
 - 1-cycle load-use stall (hazard detection unit).
 - Branches and jumps resolve in EX. Predict-not-taken, 2-cycle penalty on a taken branch.
 - Synchronous reset.
+
+## Next Additions
+
+I'm planning to add these next features to push this project further and to also expand my learning in other areas:
+
+- L1 instruction and data caches: direct-mapped and blocking. The data cache is
+  write-back and write-allocate. Both sit in front of a main-memory model with a
+  configurable access latency, so the miss cost can be measured on each benchmark.
+- AXI4-Lite SoC integration: the core gets an AXI4-Lite master port for
+  memory-mapped peripherals.  Data RAM stays on the core's direct port, so RAM loads and stores
+  add no stall cycle
+- Post-synthesis results: Take the chip to PnR using LibreLane
 
 ## Results
 
@@ -38,7 +50,7 @@ high-fanout nets: [`docs/results.md`](docs/results.md).
 | `sim/` | Test programs: assembly in `asm/`, hex files in `hex/`. See [`sim/README.md`](sim/README.md) |
 | `synth/` | Yosys synthesis scripts, OpenSTA scripts, SDC constraints |
 | `fpga/` | PYNQ-Z2 pin constraints |
-| `docs/` | Results |
+| `docs/` | More detailed Results |
 
 ## Verification
 
@@ -51,9 +63,9 @@ high-fanout nets: [`docs/results.md`](docs/results.md).
   and reports pass/fail, cycles, IPC, stall cycles and redirects.
 - **FPGA:** `fpga_top` watches the same tohost store and shows the result on the LEDs.
 
-## Running
+## To Run:
 
-Tools: Verilator, Yosys, OpenSTA, Xilinx Vivado.
+To run this program, I used Verilator for linting/compiling, Yosys for synthesis, OpenSTA for timing analysis. I also used Xilinx Vivado for synthesizing and implementing it on my PYNQ Z2 Fpga.
 
 Simulate one program:
 
@@ -68,22 +80,3 @@ Synthesis and timing (SKY130):
 yosys -m slang -s synth/synth_core.ys | tee build/synth.log
 sta synth/sta_core.tcl | tee build/sta.log
 ```
-
-## FPGA (PYNQ-Z2)
-
-`fpga_top` = Clocking Wizard (125 MHz → 90 MHz), 2-flip-flop reset synchronizer on BTN0,
-core and memories. The program is loaded into instruction memory at build time with
-`$readmemh` (`IMEM_FILE` parameter).
-
-| LED | Meaning |
-|---|---|
-| LD0 | Program done (tohost store seen) |
-| LD1 | Pass |
-| LD2 | Fail |
-| LD3 | Heartbeat (clock is running) |
-
-## Planned
-
-- riscv-arch-test compliance.
-- Formal verification with SymbiYosys.
-- AXI4-Lite bus for peripherals.
