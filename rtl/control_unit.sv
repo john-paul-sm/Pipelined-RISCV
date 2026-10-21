@@ -9,7 +9,7 @@ module control_unit import riscv_ref::*; (
     output logic Branch,     // 1 = conditional branch (B-type)
     output logic Jump,       // 1 = JAL or JALR (always taken)
     output logic Jalr,       // 1 = jump target is rs1+immediate (from ALU), not PC+immediate
-    output logic MulDiv,     // 1 = M extension instruction: multiplier / divider result, not ALU result
+    output logic MulDiv,     // 1 = M extension instruction: mul_div_unit result, not ALU result
     output logic rs1_used,   // 1 = instruction[19:15] is rs1 (hazard_detection_unit compares it)
     output logic rs2_used,   // 1 = instruction[24:20] is rs2 (hazard_detection_unit compares it)
     output logic [3:0] alu_op
