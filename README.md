@@ -13,18 +13,13 @@ Runs at 90 MHz on a PYNQ-Z2 FPGA board and closes at 93.96 MHz in SKY130 synthes
 - Full forwarding from EX/MEM and MEM/WB, and a write-first register file.
 - 1-cycle load-use stall (hazard detection unit).
 - Branches and jumps resolve in EX. Predict-not-taken, 2-cycle penalty on a taken branch.
-- Synchronous reset.
 
 ## Next Additions
 
 I'm planning to add these next features to push this project further and to also expand my learning in other areas:
 
-- L1 instruction and data caches: direct-mapped and blocking. The data cache is
-  write-back and write-allocate. Both sit in front of a main-memory model with a
-  configurable access latency, so the miss cost can be measured on each benchmark.
-- AXI4-Lite SoC integration: the core gets an AXI4-Lite master port for
-  memory-mapped peripherals.  Data RAM stays on the core's direct port, so RAM loads and stores
-  add no stall cycle
+- L1 instruction and data caches
+- AXI4-Lite SoC integration
 - Post-synthesis results: Take the chip to PnR using LibreLane
 
 ## Results
@@ -56,11 +51,11 @@ high-fanout nets: [`docs/results.md`](docs/results.md).
 
 - **Unit testbenches:** directed, self-checking SystemVerilog. Each test compares the
   output with an expected value in the testbench and prints `=== N passed, M errors ===`.
-  Some use exhaustive or random checks against a reference model (`mul_div_unit`: 4,225
-  checks).
+
 - **Programs:** every program in `sim/` checks its own result and stores the pass/fail code
   to the tohost address `0x7FC` (`1` = pass). `tb_bench` runs one program on `riscv_top`
   and reports pass/fail, cycles, IPC, stall cycles and redirects.
+  
 - **FPGA:** `fpga_top` watches the same tohost store and shows the result on the LEDs.
 
 ## To Run:
